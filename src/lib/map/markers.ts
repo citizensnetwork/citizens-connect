@@ -296,7 +296,6 @@ export function createPlaceMarkerEl(
     ">!</span>`
     : "";
 
-  const outerBorder = isHighRated ? "2px solid #111" : "none";
   const glow = isHighRated
     ? "drop-shadow(0 0 5px rgba(212,175,55,.6))"
     : "drop-shadow(0 1px 3px rgba(0,0,0,.35))";
@@ -328,7 +327,7 @@ export function createPlaceMarkerEl(
     border-radius:50%;
     background:#3a3a3a;
     border:2.5px solid #D4AF37;
-    ${outerBorder !== "none" ? `box-shadow:0 0 0 1.5px #111;` : ""}
+    ${isHighRated ? "box-shadow:0 0 0 1.5px #111;" : ""}
     display:flex;
     align-items:center;
     justify-content:center;

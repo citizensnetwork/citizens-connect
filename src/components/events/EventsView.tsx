@@ -546,7 +546,7 @@ function FeaturedDragHandle({ onClose }: { onClose: () => void }) {
     >
       <span
         className="h-[3px] w-10 rounded-full bg-black transition-all duration-200 group-hover:w-14"
-        style={{ boxShadow: "0 0 0 1px #D4AF37" }}
+        style={{ boxShadow: "0 0 0 1px var(--gold)" }}
       />
     </button>
   );

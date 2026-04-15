@@ -11,7 +11,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { EventClickArg } from "@fullcalendar/core";
 import type { DateClickArg } from "@fullcalendar/interaction";
 
-/** Returns an rgba string for a hex color at the given alpha. */
+/** Returns an rgba string for a hex color at the given alpha (hex must be #RRGGBB). */
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
