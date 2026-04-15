@@ -239,7 +239,7 @@ export function createCustomMarkerEl(
 }
 
 /**
- * Place marker — gold filled SVG icon with white outline, no bubble/background.
+ * Place marker — dark grey filled circle with gold border, distinct from event markers.
  * Slightly smaller than event markers to avoid hiding events.
  */
 export function createPlaceMarkerEl(
@@ -249,8 +249,7 @@ export function createPlaceMarkerEl(
     isFlagged?: boolean;
   }
 ): HTMLDivElement {
-  const size = 36;
-  const iconSize = 24;
+  const size = 32;
   const avgRating = options?.avgRating ?? null;
   const isHighRated = options?.isHighRated ?? false;
   const isFlagged = options?.isFlagged ?? false;
@@ -297,14 +296,20 @@ export function createPlaceMarkerEl(
     ">!</span>`
     : "";
 
+  const outerBorder = isHighRated ? "2px solid #111" : "none";
   const glow = isHighRated
-    ? "drop-shadow(0 0 4px rgba(212,175,55,.5))"
-    : "drop-shadow(0 1px 3px rgba(0,0,0,.3))";
-
+    ? "drop-shadow(0 0 5px rgba(212,175,55,.6))"
+    : "drop-shadow(0 1px 3px rgba(0,0,0,.35))";
   const opacity = isFlagged ? 0.62 : 1;
 
-  const placeIcon =
-    '<svg viewBox="0 0 24 24" fill="#D4AF37" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="#fff" stroke="#D4AF37" stroke-width="1.5"/></svg>';
+  // Inner dot — a small white dot to indicate the center of a place
+  const innerDot = `<span style="
+    width:8px;height:8px;
+    border-radius:50%;
+    background:#fff;
+    opacity:0.6;
+    display:block;
+  "></span>`;
 
   const el = document.createElement("div");
   el.className = "cc-marker";
@@ -319,10 +324,15 @@ export function createPlaceMarkerEl(
     cursor:pointer;
     filter:${glow};
   "><span style="
-    width:${iconSize}px;height:${iconSize}px;
-    display:flex;align-items:center;justify-content:center;
-    line-height:0;
-  ">${placeIcon}</span>${ratingBadge}${warningBadge}</span>`;
+    width:${size}px;height:${size}px;
+    border-radius:50%;
+    background:#3a3a3a;
+    border:2.5px solid #D4AF37;
+    ${outerBorder !== "none" ? `box-shadow:0 0 0 1.5px #111;` : ""}
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  ">${innerDot}</span>${ratingBadge}${warningBadge}</span>`;
 
   return el;
 }
