@@ -102,11 +102,10 @@ Ordered, each independently shippable behind Wear's existing launch gate:
    real Connect reads Wear needs (contributors/categories over `/api/v1`). Update `ADR-0002` lineage.
 5. **Tests/gates** — keep coverage gates green; contract tests updated to the reconciled surface.
 
-**Connect-side work this implies:** likely **little to none** for the core path (identity is
-shared Supabase Auth; commerce is Wear-owned). The one open item is **what citizen-identity fields
-Wear may read from the commons and by which path** (Supabase Auth claims vs an RLS read of
-`public.profiles` vs a new `GET /api/v1/users|profiles` endpoint — Connect today exposes only
-*contributors*, not plain citizen profiles). See §5 Q1.
+**Connect-side work this implies:** exactly **one small additive endpoint** —
+`GET /api/v1/profiles/{id}` (display-safe fields only), per the §5 Q1 recommendation — authored in
+this repo's lineage and documented in `api-v1.md`. Everything else is Wear-side or operational;
+Q4's contributor link reuses the existing `/api/v1/contributors/{slug}`.
 
 ---
 
@@ -122,16 +121,68 @@ Wear may read from the commons and by which path** (Supabase Auth claims vs an R
   `/api/v1`. Wear's *own* `wear.*` reads are first-party (direct client under RLS) — not a cross-app
   read, so R2 does not force them through an API.
 
-## 5. Open questions / human gates (resolve before/at the build)
+## 5. Recommended answers to the open questions (drafted 2026-06-21 — **founder to ratify**)
 
-- **Q1 — Citizen identity read path:** Supabase Auth claims only, RLS read of `public.profiles`,
-  or a new `/api/v1` profiles endpoint? (Connect exposes contributors, not citizen profiles, today.)
-- **Q2 — Wear reads: Prisma (pooled `DATABASE_URL`) or PostgREST (`wear` in Exposed schemas)?**
-  Prisma matches the existing schema file; PostgREST matches Connect/Vision's pattern.
-- **Q3 — Deploy gates (mirror Vision's):** set Wear Vercel env to the shared project URL + anon key;
-  expose `wear` schema if PostgREST; set any `CONNECT_API_BASE_URL` for `/api/v1` reads.
-- **Q4 — Brands = Connect contributors?** Whether a Wear "brand" links to a Connect contributor
-  (shared org identity) or is purely Wear-owned. Affects `connect-client`'s residual surface.
+Each is grounded in [`../SHARED_DB_CONTRACT.md`](../SHARED_DB_CONTRACT.md) + the live code, with a
+clear recommendation so the build session can start cold. Trade-offs noted; ratify or adjust.
+
+### Q1 — Citizen identity read path → **mirror in `wear.users`, hydrated from session + a small additive `/api/v1/profiles/{id}`**
+The contract (R1.2/R2) says siblings read the commons **only via `/api/v1`**, never `public.*`
+raw tables — *except* user-scoped data under RLS (R3.4). `public.profiles` is public-SELECT, but a
+direct cross-app read of it from Wear would violate R2, and Connect today exposes only
+*contributors* (approved orgs), not citizen profiles.
+- **Current user** → Wear's own **Supabase Auth session** (id, email, OAuth metadata) — the
+  sanctioned R3.4 user-scoped path. This also keys the user's own `wear.*` rows.
+- **Other users' display identity** (post authors, followers, brand owners) → Wear keeps a
+  **`wear.users` mirror** (handle/display_name/avatar) — exactly what its Prisma `User` model
+  already intends ("Connect owns it; Wear stores it denormalised, reconciles via the event bus").
+  The mirror is hydrated from each user's **own session on first Wear sign-in** — which covers
+  essentially everyone Wear renders, because Wear only displays Wear participants.
+- **Backfill gap** → add a **minimal, additive** Connect endpoint **`GET /api/v1/profiles/{id}`**
+  returning *display-safe* fields only (id, handle/full_name, avatar_url), documented in
+  `api-v1.md` (R2.2/R2.3). This keeps the rare "render a user who hasn't opened Wear" case inside
+  the `/api/v1` contract instead of a raw-table read.
+- *Why not read `public.profiles` directly:* violates R2 and welds Wear to Connect's table shape
+  (hurts the exit ramp). *Why not Auth-claims-only:* claims give you only the current user.
+
+### Q2 — Wear's `wear.*` reads → **supabase-js with `db: { schema: 'wear' }` (PostgREST, RLS-enforced) — mirror Vision**
+- **Recommended:** the same client shape Vision just shipped (`db:{schema:'wear'}`, cast back to
+  bare `SupabaseClient`). RLS enforces every read/write (satisfies R3 "RLS is the only wall"),
+  it's ecosystem-consistent, needs no custom DB-role management, and Wear has **no Prisma runtime
+  to preserve** (its store is in-memory; migrations are authored as SQL in *this* repo's lineage,
+  not via `prisma migrate`). Keep `schema.prisma` only as the **design reference** for writing the
+  `wear.*` DDL; do not wire Prisma at runtime. Implement the existing repo interfaces against
+  supabase-js.
+- *Trade-off:* if Wear later wants Prisma ergonomics, connect it via a dedicated least-privilege
+  **`wear_app` role** scoped to `wear.*` (so bypassing RLS still can't touch `vision.*`/`public.*`
+  writes) — extra ops; defer until there's a reason.
+
+### Q3 — Deploy gates → **mirror Vision's three + the OAuth allow-list lesson**
+1. Wear Vercel env: `NEXT_PUBLIC_SUPABASE_URL` = shared **`xyiajtrvhlxaeplsiajj`** + its
+   **anon/publishable** key.
+2. Supabase Dashboard → API → **Exposed schemas → add `wear`** (required for the `db.schema='wear'`
+   PostgREST path; `wear` is not exposed today).
+3. Set **`CONNECT_API_BASE_URL`** (prod Connect origin) + optional `CONNECT_API_KEY` (`cck_live_…`)
+   for `/api/v1` reads.
+4. Supabase Auth → URL config: add Wear's production origin (full `https://…`) to **Site URL /
+   Redirect URLs** allow-list (the Connect §2b lesson — a scheme-less or missing entry breaks
+   Google OAuth).
+
+### Q4 — Brands ↔ Connect contributors → **Wear-owned, with an OPTIONAL ownership-verified link (mirror Vision exactly)**
+`wear.brands` are **Wear-owned**. Add a **nullable** `connect_contributor_id` (value-ref to
+`public.profiles.id`, **no cross-schema FK** — preserves R1.3/the exit ramp), set via an
+**ownership-verified** link flow that mirrors Vision's `POST /api/connect/link`: resolve
+`/api/v1/contributors/{slug}` → contributor id, verify `profile.id === auth.uid()` (no attribution
+hijack), then store. Linked ⇒ the brand surfaces its Connect footprint ("make the unseen seen");
+null ⇒ a pure Wear brand (the common case for small brands). This shrinks `connect-client`'s
+residual surface to "read a contributor by slug/id over `/api/v1`" and **drops** the
+brands/products/users *catalog* contract entirely (Wear owns those). Reuses Vision's proven,
+security-hardened precedent verbatim.
+
+### Net Connect-side work implied by these answers
+Just **one** small additive endpoint — `GET /api/v1/profiles/{id}` (Q1) — authored in this repo's
+lineage and documented in `api-v1.md`. Everything else is Wear-side or operational. (Q4's
+contributor read uses the existing `/api/v1/contributors/{slug}`.)
 
 ## 6. Branch reconciliation (done this session)
 

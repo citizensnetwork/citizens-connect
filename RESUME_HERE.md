@@ -293,7 +293,11 @@ social-commerce foundation. **`main` is the correct base for the Step 3 build br
 2. replace mock-token session (`apps/web/src/lib/session.ts`) with Supabase Auth;
 3. land `wear.*` migration **in this repo's lineage** (next # = 143) + RLS;
 4. reconcile `connect-client`; 5. keep coverage gates green.
-Open questions Q1–Q4 in scope doc §5 (citizen-identity read path; Prisma vs PostgREST; deploy gates; brand↔contributor link).
+**Recommended answers to Q1–Q4 now drafted** in scope doc §5 (founder to ratify): Q1 `wear.users` mirror
+hydrated from session + a tiny additive `GET /api/v1/profiles/{id}`; Q2 supabase-js `db.schema='wear'` (RLS,
+like Vision — keep Prisma only as DDL reference); Q3 mirror Vision's deploy gates + OAuth allow-list; Q4
+`wear.brands` Wear-owned with an OPTIONAL ownership-verified `connect_contributor_id` (mirror Vision's link).
+**Net new Connect-side work = one additive endpoint** (`/api/v1/profiles/{id}`).
 
 - After Step 3: **Step 4** = extract pure-TS `@citizens/*` packages (align Wear's `@citizens-wear/*`);
   **Step 5** = the actual monorepo lift (grow Wear → `citizens`, `git filter-repo` Connect + Vision in),
