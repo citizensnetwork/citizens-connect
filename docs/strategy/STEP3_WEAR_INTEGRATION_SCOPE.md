@@ -93,11 +93,13 @@ Ordered, each independently shippable behind Wear's existing launch gate:
    (`getSession`/`writeSessionCookie`) onto `@supabase/ssr`; Google OAuth callback; `getCurrentUser`
    resolves the Supabase user + shared `public.profiles`. Retire `MOCK_SIGN_IN_TOKEN` and the
    `connect-client.auth` path. Keep `MockConnectClient` for tests only.
-3. **Land the `wear.*` schema** — author migration(s) **in `citizens-connect`'s migration lineage**
-   (single source of truth per the brief; next # = **143**) creating `wear.*` tables from the Prisma
-   shape, with RLS (owner-scoped writes; public reads where appropriate) and `wear`-schema grants.
-   Decide Prisma-vs-PostgREST for Wear's reads (Prisma needs a pooled `DATABASE_URL`; PostgREST needs
-   `wear` added to Exposed schemas). Wire `packages/db` off `MemoryWearStore` onto the real client.
+3. **Land the `wear.*` schema** — the DDL is **already drafted**:
+   [`../wear/143_wear_schema.sql`](../wear/143_wear_schema.sql) (tables, enums, RLS, grants, the
+   `wear.users` mirror, the optional `brands.connect_contributor_id`, and a recursion-safe
+   `is_conversation_member` helper). Move it to `supabase/migrations/143_wear_schema.sql` (renumber if
+   Connect shipped a later migration meanwhile) and apply via `apply_migration`. Reads use
+   `supabase-js` `db:{schema:'wear'}` (settled — see the data-access decision in §5). Wire
+   `packages/db` off `MemoryWearStore` onto the real client.
 4. **Reconcile `connect-client`** — drop/repoint the brands/products/users/OIDC surface; keep only
    real Connect reads Wear needs (contributors/categories over `/api/v1`). Update `ADR-0002` lineage.
 5. **Tests/gates** — keep coverage gates green; contract tests updated to the reconciled surface.
@@ -121,10 +123,24 @@ Q4's contributor link reuses the existing `/api/v1/contributors/{slug}`.
   `/api/v1`. Wear's *own* `wear.*` reads are first-party (direct client under RLS) — not a cross-app
   read, so R2 does not force them through an API.
 
-## 5. Recommended answers to the open questions (drafted 2026-06-21 — **founder to ratify**)
+## 5. Answers to the open questions — **RATIFIED (founder, 2026-07-01)**
 
-Each is grounded in [`../SHARED_DB_CONTRACT.md`](../SHARED_DB_CONTRACT.md) + the live code, with a
-clear recommendation so the build session can start cold. Trade-offs noted; ratify or adjust.
+All four ratified as recommended. Grounded in [`../SHARED_DB_CONTRACT.md`](../SHARED_DB_CONTRACT.md)
++ live code.
+
+> **Data-access decision (founder Q, 2026-07-01): stay on Supabase (`supabase-js`), NOT Prisma.**
+> Supabase is the *platform* (Postgres + Auth + RLS); Prisma would only be an alternative *client*.
+> In this shared-DB, schema-per-app, **RLS-is-the-only-wall** model (R3), `supabase-js` connects
+> with the user JWT so RLS is enforced automatically; **Prisma bypasses RLS** (privileged role) and
+> would need a hand-built least-privilege `wear_app` role + all isolation in app code. Supabase Auth
+> also *requires* `supabase-js` regardless, `prisma migrate` can't co-own a DB whose migrations live
+> in Connect's SQL lineage, and Connect + Vision already use `supabase-js`. Prisma only makes sense
+> if an app later gets its **own** dedicated project (the exit ramp). `schema.prisma` stays as a
+> design reference only. This settles Q2 below.
+
+> **Drafted DDL:** [`../wear/143_wear_schema.sql`](../wear/143_wear_schema.sql) — the full `wear.*`
+> schema (tables, enums, RLS, grants) implementing these answers. **DRAFT — not yet applied**
+> (deliberately outside `supabase/migrations/` so it can't auto-apply); apply during the build.
 
 ### Q1 — Citizen identity read path → **mirror in `wear.users`, hydrated from session + a small additive `/api/v1/profiles/{id}`**
 The contract (R1.2/R2) says siblings read the commons **only via `/api/v1`**, never `public.*`
