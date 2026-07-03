@@ -109,7 +109,7 @@ begin
   left join vision.reach_per_event r on r.event_id = e.id
   where s.org_id = p_org_id
   group by s.id, s.name
-  order by s.sort_order, s.name;
+  order by s.name;
 end;
 $$;
 
@@ -185,8 +185,8 @@ begin
    and (p_to   is null or (e.date at time zone v_tz)::date <= p_to)
   left join vision.engagement_per_event g on g.event_id = e.id
   where s.org_id = p_org_id
-  group by s.id, s.name, s.sort_order
-  order by s.sort_order, s.name;
+  group by s.id, s.name
+  order by s.name;
 end;
 $$;
 
