@@ -18,6 +18,11 @@ These instructions are MANDATORY and apply to every session in this repository.
 
 7. **Once checks, lints, audits, checks, fixes etc are done**, push to git, update the resume-here md folder in such a way that any other conversation can pick up from EXACTLY where we left off and have complete understanding of our current project state — no lost conversation must result in a loss of context. And finally, report on what was completed, as well as what incomplete work we still have lying ahead of us.
 
+8. **End EVERY session with a three-part close-out (MANDATORY):**
+   - **(a) DONE** — a plain-language report of everything completed this session (what shipped, where it lives — commits, migrations, files — and the gate/advisor results that prove it).
+   - **(b) LEFT** — everything still open: remaining roadmap items, deferred decisions, founder actions, and any debt knowingly accepted, each with enough context to act on without this conversation.
+   - **(c) CONTINUATION PROMPT** — a highly detailed, self-contained prompt (written into RESUME_HERE's NEXT STEPS and repeated in the final reply) that lets the next session thoroughly and comprehensively continue: exact next increments in order, the docs/specs/sections to read first, gates to keep green, and known constraints. Word it to **allow room for creativity and discernment** — the next session should be free to spot and propose improvements along the way, not just execute mechanically.
+
 ---
 
 ## Session Offloading Protocol (MANDATORY)

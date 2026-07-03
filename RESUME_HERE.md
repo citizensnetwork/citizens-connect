@@ -829,6 +829,63 @@ preserved**. Anchor tags pushed to all three original repos: `{connect,vision,we
 
 ---
 
+## 3Q. Vision demo→live wiring — increment 1 SHIPPED ✅ (2026-07-03, migs 147+148 + app overlay)
+
+Executed NEXT-STEPS item 2 (brief row **4d**, now IN PROGRESS) per wiring-spec §8's critical path,
+**daily-snapshot cron first** as directed. Working log: `.claude/sessions/vision-demo-live-wiring.md`
+(gitignored). Also added **CLAUDE.md standing instruction #8** (mandatory session-end three-part
+close-out: DONE / LEFT / CONTINUATION PROMPT) — the founder's ask this session.
+
+### DB — Connect migs 147+148 APPLIED to prod (`main` f59c67c, tag `connect-pre-mig147`) → **next mig # = 149**
+- **147_vision_spaces**: `vision.spaces` (+icon, colour, sort_order; RLS member-SELECT/admin-write;
+  departments grant pattern) + FK-wires `category_space_map.space_id` (CASCADE) +
+  `vision_period_snapshots.space_id` (SET NULL) — both verified empty first — + the two partial
+  unique indexes that make day snapshots structurally idempotent.
+- **148_vision_intelligence_engine**: **`run_daily_snapshots()`** + hourly cron **jobid 11**
+  (`vision_daily_snapshots`, '15 * * * *') — org-tz aware (events.date is timestamptz), whole-org
+  + per-space day rows, zero-activity days still write rows (series continuity), idempotent.
+  Readers **`reach_per_org` / `engagement_per_org` / `calendar_growth` / `retention_rate`** —
+  all SECDEF `search_path=vision,public,pg_catalog`, take the **VISION org id**, gate on
+  `is_org_member OR is_platform_admin` (42501), resolve `connect_contributor_id` internally
+  (snapshots/claims/map tables key on the CONNECT contributor id = `events.created_by` — verified
+  live), **num+den beside every pct** (spec §5). Internal `org_active_persons` helper + the job are
+  service_role-only. Plus daily MV refresh cron **jobid 12** (the 3 uncovered MVs + boundary coverage,
+  CONCURRENTLY — unique indexes verified). Spec §6.1-draft deviations documented in the migration
+  header (org iteration via the mig-142 bridge; day-bounded distinct_persons; per-space rows built).
+- **Verified**: advisors **0 ERROR**; **new baseline 76 WARN / 3 INFO** (+4 vs 72/3 = exactly the four
+  gated authenticated-callable readers — same documented class as `get_org_dashboard_stats`; do not
+  re-flag). End-to-end rolled-up prod smoke (temp org linked to the busiest contributor, then fully
+  deleted): snapshot row written; 42501 fires with no JWT; as simulated org_admin all four readers
+  returned correct shapes (`reach 34/153 events`, `retention 0.0% (0/2)`, growth 5 metric rows with
+  null pcts against the empty snapshot history — correct).
+
+### App — citizens-vision `main` @ **40e56af** (3602a86 → 40e56af)
+- **NEW `GET /api/metrics/connect?org_id&period`** — wraps the four readers + the last-30-day
+  whole-org snapshot series (series is RLS-scoped to the link-owner admin; other members get `[]`);
+  `linked:false` for unlinked orgs (no RPC calls); 42501→403. +8 handler tests.
+- **NEW `src/frontend/app/live.jsx`** — the CV_LIVE overlay: with a real (non-demo) session it
+  fetches `/api/orgs` + `/api/metrics/connect` and drops the RPC rows into the narrative-engine
+  `data` slots (data.jsx IS the contract — nothing else changes); on ANY failure demo data stays
+  untouched. Live now: home Kingdom-pulse + observations, Analytics **Reach/Growth/Retention/
+  Engagement**, org name. Advisories emptied in live mode (engine unbuilt — honesty);
+  Funnel/Broadcast tabs flagged `demo` → "sample data" chip.
+- Narrative catalog: `bodyNoAttribution` (reach) + `bodyNoHotspot` (retention) variants;
+  ObservationCard + Analytics gained **neutral/bodyKey graceful degradation** (authoring rule 4);
+  empty-series guard ("Trend charts build as daily snapshots accumulate."); Shell **Live/Demo badge**
+  (hover = reason). `live.jsx` registered in build appFileOrder + index.html.
+- **Gates**: tsc 0 · eslint 0 · **vitest 672/672 (+8, 68 files)** · next build OK (46 routes) ·
+  build-frontend OK. **Verified in-browser** (built bundle :3005): demo flow unchanged, 0 console
+  errors; synthetic `applyOverlay` renders the live pulse (34 · +20% · 0% (0/2) · 3 · +50%), neutral
+  engagement fallback, retention counts — the five-layer law + convention #8 hold.
+
+### ⛔ Runtime still gated on founder (unchanged §3F/§3O deploy gates)
+`vision` schema → PostgREST **Exposed schemas**; Vision Vercel env (`NEXT_PUBLIC_SUPABASE_URL` +
+anon key, optional MAPTILER key); Supabase Auth redirect URL. Until then the app lands on demo mode
+by design. The snapshot cron writes rows only once an org links a Connect contributor
+(`POST /api/connect/link`).
+
+---
+
 ## ▶▶ NEXT STEPS (start here in a fresh chat)
 
 > **Step 5 is EXECUTED (§3P): the monorepo exists** — [PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23)
@@ -836,14 +893,41 @@ preserved**. Anchor tags pushed to all three original repos: `{connect,vision,we
 > Roadmap order = the ratified [brief §6](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md).
 
 1. **Founder cutover of the monorepo ⛔ (dashboard, not code)** — the §3P checklist above.
-2. **Vision demo→live wiring (code, any session — the biggest lever):** connect the 45 `/api/*`
-   handlers into the HTML screens (`authFetch` is ready; the narrative-engine `data` objects are the
-   calc contract — VISION_BUILD_PLAN §3 + [wiring spec](docs/VISION_BACKEND_WIRING_SPEC.md) §3
-   surface→backend map). Then the spec's §8 critical path: **Phase A** foundation (**mig 147+**:
-   `vision.spaces`, identity bridge ✅ done via 142, core routes exist) → **Phase B** intelligence
-   engine (daily snapshot cron — unblocks Growth/Retention — aggregation fns, advisory evaluation
-   engine §3.7c) → **C** deep analytics (funnel, cross-pollination, dormancy) → **D** exports +
-   scheduled reports. **Timeline Map** (MapLibre + MAPTILER key) rides with this.
+2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increment 1 ✅ §3Q).**
+   **Continuation prompt for the next session (self-contained — copy from here):**
+
+   > Read `apps/connect/VISION.md` (or VISION.md in citizens-connect) first, then RESUME_HERE §3Q
+   > + this item. Step 5 (monorepo) is EXECUTED — PR citizens-wear#23 pending founder merge; do NOT
+   > re-lift; work lands in the ORIGINAL repos (DB migrations → citizens-connect `supabase/migrations/`,
+   > head **148**, next # **149**; Vision app code → citizens-vision, main @ `40e56af`). Increment 1
+   > (§3Q) shipped `vision.spaces`, the daily-snapshot cron (jobid 11), the four org-level RGRE
+   > readers, `GET /api/metrics/connect`, and the `live.jsx` overlay (home + Analytics RGRE live).
+   > Continue the wiring-spec critical path (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its
+   > 2026-07-03 status banner) in gated increments, in this order unless you find a better one
+   > (you have room for creativity and discernment — propose improvements as you go):
+   > **(a) mig 149 — advisory evaluation engine** (§3.7c: `evaluate_advisory_rules()`, hardcoded
+   > metric-slug→query map first [reach/engagement/growth/retention/activity_count via the mig-148
+   > readers], cooldown-aware inserts into `advisory_outputs`, 6-hourly cron per §6.2; seed 3–5
+   > universal org-type-agnostic `advisory_templates`+`advisory_rules`) then wire the Advisories
+   > screen + home banner to `/api/advisory` (handler exists) with dismiss round-trip;
+   > **(b) mig 150 — `activity_funnel` + `broadcast_effectiveness`** (§3.4a/§3.4d SQL sketches;
+   > num+den convention §5) + extend `/api/metrics/connect` (or a sibling route) + flip the Funnel/
+   > Broadcast tabs from `demo:true` to live; **(c) Spaces CRUD wiring** (§3.5a: configureSpaces
+   > screen → new `/api/spaces` handler on `vision.spaces` + `category_space_map` mapping UI —
+   > table is live since mig 147); **(d) Activities/Goals/Projects/Vision-statements/Team screens
+   > → their existing handlers** (build plan §3 surface→spec table; keep the editable-collection
+   > shapes); **(e) Timeline Map** live MapLibre (needs founder's NEXT_PUBLIC_MAPTILER_KEY — skip
+   > if unset). Every DB increment: pre-apply git tag, `apply_migration`, advisors **0 ERROR / 0 new
+   > vs the 76 WARN / 3 INFO baseline** (§3Q — the 4 reader WARNs are by design), rolled-up prod
+   > smoke, migration file committed. Every app increment: tsc 0 · eslint 0 · vitest green ·
+   > next build · `node scripts/build-frontend.js` · in-browser check (launch config
+   > `vision-frontend-built`, :3005 — demo flow must stay intact; the live overlay pattern in
+   > live.jsx is the template: RPC rows → narrative `data` slots, demo fallback on failure).
+   > Offload to `.claude/sessions/` per CLAUDE.md; end with instruction-8 close-out (DONE / LEFT /
+   > new continuation prompt) + update RESUME_HERE §3Q-next, brief row 4d, wiring-spec banner.
+   > Constraints: narrative copy is `{template,data}` slots only (no baked numbers); counts beside
+   > every percentage; the smallest org must never render worse than the demo; runtime is gated on
+   > the founder's `vision` PostgREST exposure — code against it, don't block on it.
 3. **Wear launch-hardening fast-follows (code, any session, parallel):** `/api/*` rate limiting —
    **extract `@citizens/utils`(rate-limit) in the same change** (post-merge it's a plain workspace
    package; Vision's copy stayed byte-compatible on purpose); Wear `/api/admin/*` + triage screen
@@ -882,6 +966,6 @@ npx tsc --noEmit; npx vitest run; npx next lint --dir src; node scripts/build-fr
 
 ### Canonical docs (start here)
 - [VISION.md](VISION.md) · [.github/MASTER_DIRECTION.md](.github/MASTER_DIRECTION.md) — north star + locked technical direction.
-- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **146**, `public`/`vision`/`wear`).
+- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **148**, `public`/`vision`/`wear`).
 - [docs/strategy/ECOSYSTEM_DECISION_BRIEF.md](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md) — **the ecosystem code progress plan** (single source of truth).
 - [docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md](docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md) — Wear Phase 3 spec (**✅ complete — §3L**).

@@ -9,6 +9,13 @@
 > Vision work = demo→live wiring of the 45 handlers into the frontend screens
 > (the narrative-engine `data` objects are the contract) + deploy gates (§1).
 >
+> **Demo→live increment 1 SHIPPED 2026-07-03** (brief row 4d, RESUME §3Q):
+> Connect migs **147+148** (vision.spaces + daily-snapshot cron + the four
+> org-level RGRE readers, advisors 0 ERROR) and citizens-vision `40e56af`
+> (`GET /api/metrics/connect` + `live.jsx` overlay — home pulse/observations +
+> Analytics RGRE live with demo fallback). Next tranche: advisory engine
+> (spec §3.7c) + funnel/broadcast (mig 149+), then CRUD wiring per surface.
+>
 > Companions: [`docs/VISION_BACKEND_WIRING_SPEC.md`](../VISION_BACKEND_WIRING_SPEC.md)
 > (the unit-of-work reference for the backend half),
 > [`docs/ECOSYSTEM_PROFILE_LEVELS.md`](../ECOSYSTEM_PROFILE_LEVELS.md) (Step 4b — Vision's

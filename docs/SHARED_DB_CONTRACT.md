@@ -183,10 +183,21 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-02, project `xyiajtrvhlxaeplsiajj`, head = mig 146)
+## 9. Verification snapshot (updated 2026-07-03, project `xyiajtrvhlxaeplsiajj`, head = mig 148)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
+- **`vision.*` migs 147+148 (2026-07-03 — RESUME §3Q):** `vision.spaces` (RLS member-SELECT/
+  admin-write, FK-wired into `category_space_map` + `vision_period_snapshots`, day-snapshot dedup
+  indexes) + the intelligence-engine first tranche: `run_daily_snapshots()` (SECDEF,
+  service_role-only, hourly cron **jobid 11**), org-gated SECDEF readers `reach_per_org` /
+  `engagement_per_org` / `calendar_growth` / `retention_rate` (EXECUTE `authenticated`+
+  `service_role`; internal `is_org_member`/`is_platform_admin` gate), internal `org_active_persons`
+  (service_role-only), daily MV refresh cron **jobid 12**. **Security advisors: 0 ERROR; new
+  baseline 76 WARN / 3 INFO** (+4 vs 72/3 = exactly the four gated authenticated-callable readers —
+  intentional, same class as `get_org_dashboard_stats`; do not re-flag). Note: cross-schema reads
+  inside these SECDEF fns (`public.events`/`rsvps`/`follows`/`reviews`/`profiles`) are the
+  sanctioned Connect-published-aggregate pattern (§1), not an app-level raw-table read.
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers
