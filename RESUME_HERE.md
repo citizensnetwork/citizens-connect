@@ -779,34 +779,86 @@ addition: **Vision needs a login page** (built). Working log:
 
 ---
 
+## 3P. Ecosystem Step 5 EXECUTED — the monorepo lift ✅ (2026-07-03, PR #23 pending founder merge)
+
+Executed brief §6 row 5 (D3). Working log: `.claude/sessions/step5-monorepo-lift.md` (gitignored).
+**No DB change → next migration # still 147.** No app-functional code changed — the lift is mechanical
+(the brief's own constraint) + the dependency/security reconciliation the merge forced.
+
+### The monorepo exists: `C:\Users\SJ\Documents\Citizen Network\citizens`
+Branch **`step5-monorepo-lift`** pushed → **[citizens-wear PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23)**
+(founder merges; then renames the GitHub repo → `citizens`). Grown from Wear's Turborepo (D3 — NOT a
+fresh repo); Connect + Vision lifted via `git filter-repo --to-subdirectory-filter` with **full history
+preserved**. Anchor tags pushed to all three original repos: `{connect,vision,wear}-pre-monorepo`.
+
+### Commits on the branch (one per unit)
+1. `86a2235` rename: `apps/web`→`apps/wear`; `@citizens-wear/*`→`@citizens/*` (brief §5 "merge = rename").
+2. `37d9a61` Connect lifted → `apps/connect` (from `ac1345c`). 3. `81d2673` Vision lifted →
+   `apps/vision` (from `3602a86`).
+4. `49319eb` **`supabase/` hoisted to the root** — one migration lineage (head 146) = repo-owned.
+   Only load-bearing path fix: `category-interests.test.ts` resolves the shared file via
+   `resolve(process.cwd(), "../../supabase/…")` (import.meta.url is NOT `file:` under jsdom).
+5. `c4e243a` **vendor flip**: both `vendor/citizens-frontend-build` copies + sync scripts + drift tests
+   DELETED; deps → `workspace:*`; per-app `package-lock.json` → root `pnpm-lock.yaml`. Connect gains a
+   `typecheck` script + `@vitest/coverage-v8` (its `test:coverage` script always assumed it).
+6. `5bfeedd` root wiring: monorepo README + root CLAUDE.md (points at `apps/connect/{VISION,RESUME_HERE}.md`
+   — deep links unbroken), node >=22 (.nvmrc 22), prettier `--ignore-path` fix + lifted apps excluded,
+   turbo build outputs += `public/**`/`mobile-dist/**`, CI timeout 15→30 min. Workspace-resolution fixes
+   folded in here + the security commit: scoped override `eslint-config-next>@typescript-eslint/*: ^8.58`,
+   per-app `typescript ^5.9.3` pins, Vision `vite ^8.0.7` — each restores what the apps' old npm lockfiles
+   actually resolved (deleting them let pnpm reuse Wear's stale/lower pins).
+7. `3c7c5c8` prettier pass — **43 files were ALREADY failing `format:check` on pre-lift Wear `main`**
+   (that CI step was red; prior Wear gates ran tsc/lint/test/build only). Now green.
+8. `6f852b3` **security**: `pnpm audit` on the merged tree = **34 advisories (1 critical/15 high) → 1 low**
+   (below gate threshold). Next → 15.5.18 / 16.2.6, turbo → 2.9.14, vitest → 3.2.6, + range-scoped
+   `pnpm audit --fix` overrides (brace-expansion / esbuild 0.27.x / vite 7.x / js-yaml 4.1.x).
+
+### Gates (all green at branch HEAD)
+`pnpm lint` 10/10 · `typecheck` 10/10 · `test` 9/9 (Connect 637 / Vision 664 / Wear web+db+cc+fb) ·
+`build` all · `format:check` clean · `audit --audit-level moderate` pass.
+
+### ⛔ FOUNDER CUTOVER (the lift is code-complete; these are dashboard actions)
+1. Merge [PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23) → rename the GitHub repo
+   `citizens-wear` → `citizens` (GitHub redirects old URLs).
+2. Vercel ×3: repoint each project at the monorepo; **Root Directory** = `apps/{connect,vision,wear}`;
+   **Ignored Build Step** = `npx turbo-ignore`.
+3. Archive `citizens-connect` + `citizens-vision` only AFTER Vercel repoints (anchor tags live there).
+4. **Until cutover, the three original repos remain the deploy sources — keep committing Connect work
+   here.** If app `main`s move before the merge, refreshing the branch = one new `git filter-repo`
+   clone + `git merge` (mechanical, repeatable — see the session log).
+
+---
+
 ## ▶▶ NEXT STEPS (start here in a fresh chat)
 
-> **Steps 3, 4, 4b and 4c are ALL COMPLETE (§3L/§3N/§3O).** All three apps share one auth +
-> one Postgres + the static-HTML frontend model on one `@citizens/frontend-build` pipeline.
-> **No monorepo yet** — that is Step 5, now unblocked. Roadmap order = the ratified
-> [brief §6](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md).
+> **Step 5 is EXECUTED (§3P): the monorepo exists** — [PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23)
+> awaits the founder. Until merge + Vercel repoint, **new Connect work still lands in this repo.**
+> Roadmap order = the ratified [brief §6](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md).
 
-1. **Step 5 — the monorepo lift** (grow Wear → `citizens`, `git filter-repo` Connect + Vision
-   in, hoist `supabase/`; the two vendored frontend-build copies flip to `workspace:*` and are
-   deleted). All code prerequisites are met; give 4c a short stabilisation window if desired.
-2. **Vision fast-follows (code, any session):** demo→live wiring of the 45 handlers into the
-   HTML screens (§3O list); Timeline Map; Vision DDL from **147**.
-3. **Wear launch-hardening fast-follows (code, any session, parallel):** `/api/*` rate
-   limiting — **extract `@citizens/utils`(rate-limit) in the same change** (brief row 4;
-   Vision's copy was kept byte-compatible on purpose); Wear `/api/admin/*` + triage screen
-   (**mig 145 is live** — the DB side is ready); media upload pipeline; notifications backend;
-   full desktop layouts; Capacitor shell scaffold.
+1. **Founder cutover of the monorepo ⛔ (dashboard, not code)** — the §3P checklist above.
+2. **Vision demo→live wiring (code, any session — the biggest lever):** connect the 45 `/api/*`
+   handlers into the HTML screens (`authFetch` is ready; the narrative-engine `data` objects are the
+   calc contract — VISION_BUILD_PLAN §3 + [wiring spec](docs/VISION_BACKEND_WIRING_SPEC.md) §3
+   surface→backend map). Then the spec's §8 critical path: **Phase A** foundation (**mig 147+**:
+   `vision.spaces`, identity bridge ✅ done via 142, core routes exist) → **Phase B** intelligence
+   engine (daily snapshot cron — unblocks Growth/Retention — aggregation fns, advisory evaluation
+   engine §3.7c) → **C** deep analytics (funnel, cross-pollination, dormancy) → **D** exports +
+   scheduled reports. **Timeline Map** (MapLibre + MAPTILER key) rides with this.
+3. **Wear launch-hardening fast-follows (code, any session, parallel):** `/api/*` rate limiting —
+   **extract `@citizens/utils`(rate-limit) in the same change** (post-merge it's a plain workspace
+   package; Vision's copy stayed byte-compatible on purpose); Wear `/api/admin/*` + triage screen
+   (**migs 145/146 live** — the DB side is ready); media upload pipeline (posts are URL-only);
+   notifications backend (tab is a placeholder); full desktop layouts (the Wear design zip is the
+   reference); Wear Capacitor shell scaffold (JS bridge is ready); Wear CSP.
 4. **Founder-only, non-code (any time):**
    - **Wear deploy gates ⛔** (values in §3L/LOCAL-SETUP §2): Vercel env NEXT_PUBLIC_SUPABASE_URL
-     + ANON_KEY (shared project), CONNECT_MODE=live + CONNECT_API_BASE_URL
-     (`https://citizens-connect.vercel.app`), optional CONNECT_API_KEY; Supabase Auth Redirect
-     URLs → Wear prod origin. (`wear` Exposed-schemas ✅ done.)
-   - **Vision deploy gates ⛔** (§3F + §3O): same env pattern (+ optional
-     NEXT_PUBLIC_MAPTILER_KEY) + Supabase **Exposed schemas → add `vision`** + its redirect URL.
+     + ANON_KEY (shared project), CONNECT_MODE=live + CONNECT_API_BASE_URL, optional
+     CONNECT_API_KEY; Supabase Auth Redirect URLs → Wear prod origin. (`wear` Exposed-schemas ✅.)
+   - **Vision deploy gates ⛔** (§3F + §3O): same env pattern (+ optional NEXT_PUBLIC_MAPTILER_KEY)
+     + Supabase **Exposed schemas → add `vision`** + its redirect URL.
    - First **Wear moderator/admin grants**: `insert into wear.user_roles (user_id, role) …` as
-     service_role (founder via MCP/SQL — §3O 4b).
-   - Answer the **Supabase-Preview** question (§3M #2: which surface showed the error) so the
-     integration can be switched off.
+     service_role (§3O 4b).
+   - Answer the **Supabase-Preview** question (§3M #2) so that integration can be switched off.
    - F1 Firebase / F2 Apple push · Step 6 store compliance · Step 7 release · **PAT rotation**
      still owed (§3D).
 
