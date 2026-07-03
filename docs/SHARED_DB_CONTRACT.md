@@ -183,7 +183,7 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-03, project `xyiajtrvhlxaeplsiajj`, head = mig 148)
+## 9. Verification snapshot (updated 2026-07-03, project `xyiajtrvhlxaeplsiajj`, head = mig 150)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
@@ -198,6 +198,15 @@ Confirmed live:
   intentional, same class as `get_org_dashboard_stats`; do not re-flag). Note: cross-schema reads
   inside these SECDEF fns (`public.events`/`rsvps`/`follows`/`reviews`/`profiles`) are the
   sanctioned Connect-published-aggregate pattern (§1), not an app-level raw-table read.
+- **`vision.*` migs 149+150 (2026-07-03 — RESUME §3R):** the advisory evaluation engine
+  `evaluate_advisory_rules()` (SECDEF, service_role-only, 6-hourly cron `vision_advisory_eval`) +
+  `advisory_fill()` (service_role-only) + 5 seeded universal advisory templates/rules; and the
+  org-level readers `activity_funnel()` + `broadcast_effectiveness()` (SECDEF, org-gated, EXECUTE
+  `authenticated`+`service_role`). **Security advisors: 0 ERROR; new baseline 78 WARN / 3 INFO** (+2
+  vs 76/3 = exactly `activity_funnel` + `broadcast_effectiveness`, the same intentional
+  authenticated-callable gated-reader class as the four mig-148 readers — the six vision reader WARNs
+  are BY DESIGN, do not re-flag). The advisory engine adds 0 findings (service_role-only). Same
+  Connect-published-aggregate cross-schema read pattern.
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers

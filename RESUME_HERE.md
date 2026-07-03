@@ -886,6 +886,67 @@ by design. The snapshot cron writes rows only once an org links a Connect contri
 
 ---
 
+## 3R. Vision demo→live wiring — increment 2 SHIPPED ✅ (2026-07-03, migs 149+150 + app wiring)
+
+Continued NEXT-STEPS item 2 (brief row **4d**) per wiring-spec §8: the advisory
+evaluation engine and the funnel/broadcast readers, each a gated DB increment + its app
+wiring. Working log: `.claude/sessions/vision-demo-live-wiring-2.md` (gitignored).
+
+### DB — Connect migs 149+150 APPLIED to prod → **next mig # = 151**
+- **149_vision_advisory_engine** (tag `connect-pre-mig149`, commit `abbf731`): `evaluate_advisory_rules(p_org_id)`
+  — SECDEF service_role-only, 6-hourly cron `vision_advisory_eval` (`0 */6 * * *`). Hardcoded metric-slug→query
+  map (`growth_reach_pct` / `retention_pct` / `engagement_score` / `activity_count`) computed **inline** as
+  service-role queries (the mig-148 readers are membership-gated so a cron can't call them; reuses
+  `org_active_persons`). Cooldown-aware inserts into `advisory_outputs` with `advisory_fill()` template
+  substitution; num+den in `data` (§5). **Small-org noise guards** (VISION.md litmus #3): growth needs prev-window
+  reach ≥10, retention needs prev persons ≥3, engagement only when there was activity, the quiet nudge only for
+  orgs with prior activity. Seeds **5 universal org-type-agnostic** templates/rules (reach up/down, low retention,
+  strong engagement, gone quiet) within the `advisory_templates.type` CHECK domain (reuses `trend_alert` +
+  `impact_highlight`). The 6 mig-137 seed rules stay inert (their slugs aren't in the map → skipped = honest).
+- **150_vision_funnel_broadcast** (tag `connect-pre-mig150`, commit `324b2d3`): `activity_funnel(org,from,to)`
+  (org-level impression→consider→attend→review→follow from reach_per_event + engagement_per_event + windowed
+  follows) + `broadcast_effectiveness(org,lookback=90)` (per-broadcast 48h RSVP/follow conversion + emoji-`count`
+  reactions, aggregated). Same reader contract as mig 148 (SECDEF, org-gated, connect_contributor_id bridge,
+  num+den, authenticated+service_role EXECUTE). Column reconciliation: `broadcast_messages.deleted_at` filtered;
+  `broadcast_reactions` is emoji-aggregated `(broadcast_id, emoji, count)` — reactions SUM the count column.
+- **Verified**: advisors **0 ERROR**; **new baseline 78 WARN / 3 INFO** (+2 vs 76/3 = exactly `activity_funnel`
+  + `broadcast_effectiveness`, same by-design authenticated-SECDEF gated-reader class as the four mig-148 readers;
+  the advisory engine adds 0 findings, service_role-only). The **6 vision reader WARNs are BY DESIGN — do not
+  re-flag.** Rolled-up prod smokes (temp orgs linked to the busiest contributor, fully deleted after): mig-149
+  engine ran, every seed rule correctly abstained via its guard, a temp always-fire rule proved
+  substitution+insert+num/den; mig-150 member-simulated call returned correct shapes with every null-guard firing
+  + 42501 gate verified. Net-zero cleanup confirmed both times.
+
+### App — citizens-vision `main` @ **7d5fd72** (40e56af → 7d5fd72)
+- **mig-149 wiring** (commit `53aad11`): `live.jsx` fetches `/api/advisory` (best-effort — a failure keeps the
+  metrics overlay + degrades to an all-clear list) and maps rows into the card shape (pre-rendered title/body +
+  num/den in `data`); sets `D.orgId` for the dismiss round-trip. `home.jsx` `ObservationCard` renders pre-rendered
+  `obs.title`/`obs.body` directly (live) and still template-fills demo/observations; new **AdvisoryBanner** on Home
+  (spec §3.1c — highest-severity active advisory + count + jump to Advisories; hidden when all-clear). `views.jsx`
+  Advisories dismiss = optimistic + `PATCH /api/advisory/[id]` in live mode. `ui.jsx` sevMeta +`critical`→Urgent.
+  `app.jsx` passes `goView` to Home. **NOTE:** the app-side `src/lib/advisory/engine.ts` + `POST /api/advisory/generate`
+  is a PRE-EXISTING client-supplied-metrics path — it coexists with the mig-149 cron (both cooldown-safe); left
+  untouched. The frontend reads `GET /api/advisory` + dismisses only.
+- **mig-150 wiring** (commit `7d5fd72`): `/api/metrics/connect` also calls `activity_funnel` (trailing 30-day
+  window) + `broadcast_effectiveness` (90-day default) as **best-effort** blocks (a null reader row is null in the
+  response — never 500s the call); `live.jsx` builds `D.analytics.funnel`/`broadcast` and drops the `demo:true`
+  flags. Num+den beside every conversion pct; **neutral** copy when there's nothing to convert (0 impressions /
+  0 broadcasts) so a sparse org shows honest counts, never worse than the demo; a null row leaves that one tab on
+  its sample data (chip) rather than sinking the overlay. +2 handler tests.
+- **Gates**: tsc 0 · eslint 0 · **vitest 674/674 (+2)** · next build OK · build-frontend OK. **Verified in-browser**
+  (built bundle :3005): demo flow intact (banner + health + pulse + feed, 0 console errors); Advisories screen +
+  banner render both demo advisories and (via synthetic overlay) pre-rendered live advisories (`critical`→Urgent,
+  no crash on the non-narrative `trend_alert` type); live Funnel evidence renders "12.3% (152/1240)" etc., Broadcast
+  "9.1%" + 5 evidence rows; null→demo chip + neutral sentences verified.
+
+### ⛔ Runtime still gated on founder (unchanged §3F/§3O/§3Q deploy gates)
+`vision` schema → PostgREST **Exposed schemas**; Vision Vercel env (`NEXT_PUBLIC_SUPABASE_URL` + anon key, optional
+MAPTILER key); Supabase Auth redirect URL. Until then the app lands on demo mode by design. The advisory cron only
+generates rows once an org links a Connect contributor (`POST /api/connect/link`) AND has metrics crossing a
+threshold past its guard.
+
+---
+
 ## ▶▶ NEXT STEPS (start here in a fresh chat)
 
 > **Step 5 is EXECUTED (§3P): the monorepo exists** — [PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23)
@@ -893,41 +954,51 @@ by design. The snapshot cron writes rows only once an org links a Connect contri
 > Roadmap order = the ratified [brief §6](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md).
 
 1. **Founder cutover of the monorepo ⛔ (dashboard, not code)** — the §3P checklist above.
-2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increment 1 ✅ §3Q).**
+2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increments 1 ✅ §3Q + 2 ✅ §3R).**
    **Continuation prompt for the next session (self-contained — copy from here):**
 
-   > Read `apps/connect/VISION.md` (or VISION.md in citizens-connect) first, then RESUME_HERE §3Q
-   > + this item. Step 5 (monorepo) is EXECUTED — PR citizens-wear#23 pending founder merge; do NOT
-   > re-lift; work lands in the ORIGINAL repos (DB migrations → citizens-connect `supabase/migrations/`,
-   > head **148**, next # **149**; Vision app code → citizens-vision, main @ `40e56af`). Increment 1
-   > (§3Q) shipped `vision.spaces`, the daily-snapshot cron (jobid 11), the four org-level RGRE
-   > readers, `GET /api/metrics/connect`, and the `live.jsx` overlay (home + Analytics RGRE live).
-   > Continue the wiring-spec critical path (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its
-   > 2026-07-03 status banner) in gated increments, in this order unless you find a better one
-   > (you have room for creativity and discernment — propose improvements as you go):
-   > **(a) mig 149 — advisory evaluation engine** (§3.7c: `evaluate_advisory_rules()`, hardcoded
-   > metric-slug→query map first [reach/engagement/growth/retention/activity_count via the mig-148
-   > readers], cooldown-aware inserts into `advisory_outputs`, 6-hourly cron per §6.2; seed 3–5
-   > universal org-type-agnostic `advisory_templates`+`advisory_rules`) then wire the Advisories
-   > screen + home banner to `/api/advisory` (handler exists) with dismiss round-trip;
-   > **(b) mig 150 — `activity_funnel` + `broadcast_effectiveness`** (§3.4a/§3.4d SQL sketches;
-   > num+den convention §5) + extend `/api/metrics/connect` (or a sibling route) + flip the Funnel/
-   > Broadcast tabs from `demo:true` to live; **(c) Spaces CRUD wiring** (§3.5a: configureSpaces
-   > screen → new `/api/spaces` handler on `vision.spaces` + `category_space_map` mapping UI —
-   > table is live since mig 147); **(d) Activities/Goals/Projects/Vision-statements/Team screens
-   > → their existing handlers** (build plan §3 surface→spec table; keep the editable-collection
-   > shapes); **(e) Timeline Map** live MapLibre (needs founder's NEXT_PUBLIC_MAPTILER_KEY — skip
-   > if unset). Every DB increment: pre-apply git tag, `apply_migration`, advisors **0 ERROR / 0 new
-   > vs the 76 WARN / 3 INFO baseline** (§3Q — the 4 reader WARNs are by design), rolled-up prod
-   > smoke, migration file committed. Every app increment: tsc 0 · eslint 0 · vitest green ·
-   > next build · `node scripts/build-frontend.js` · in-browser check (launch config
-   > `vision-frontend-built`, :3005 — demo flow must stay intact; the live overlay pattern in
-   > live.jsx is the template: RPC rows → narrative `data` slots, demo fallback on failure).
-   > Offload to `.claude/sessions/` per CLAUDE.md; end with instruction-8 close-out (DONE / LEFT /
-   > new continuation prompt) + update RESUME_HERE §3Q-next, brief row 4d, wiring-spec banner.
-   > Constraints: narrative copy is `{template,data}` slots only (no baked numbers); counts beside
-   > every percentage; the smallest org must never render worse than the demo; runtime is gated on
-   > the founder's `vision` PostgREST exposure — code against it, don't block on it.
+   > Read `apps/connect/VISION.md` (or VISION.md in citizens-connect) first, run its alignment
+   > self-prompt, then RESUME_HERE §3Q + §3R + this item, then CLAUDE.md (instruction 8: end with a
+   > three-part close-out DONE / LEFT / paste-ready CONTINUATION PROMPT). Step 5 (monorepo) is
+   > EXECUTED — PR citizens-wear#23 pending founder merge; do NOT re-lift; work lands in the ORIGINAL
+   > repos (DB migrations → citizens-connect `supabase/migrations/`, head **150**, next # **151**;
+   > Vision app code → citizens-vision, main @ `7d5fd72`). Increments 1+2 shipped `vision.spaces`,
+   > the daily-snapshot cron (jobid 11), the four org-level RGRE readers, the advisory engine
+   > (mig 149, cron `vision_advisory_eval`) + `activity_funnel`/`broadcast_effectiveness` (mig 150),
+   > `GET /api/metrics/connect` (RGRE + funnel + broadcast), `GET/PATCH /api/advisory` wiring, and
+   > `live.jsx` (home pulse/observations/advisory-banner + Analytics Reach/Growth/Retention/
+   > Engagement/Funnel/Broadcast all live with graceful demo fallback). Continue the wiring-spec
+   > critical path (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its 2026-07-03 status banner) in gated
+   > increments, in this order unless you find a better one (you have room for creativity and
+   > discernment — propose improvements as you go):
+   > **(a) Space-level metrics + Spaces CRUD** — build `vision.reach_per_space` + `vision.engagement_per_space`
+   > FIRST (spec §3.5b; the per-space snapshot rows already land via mig-148's `run_daily_snapshots`), because
+   > the Spaces **directory** shows per-space reach/people/trend and would regress BELOW the demo if flipped live
+   > without them. Then a new `/api/spaces` handler (GET/POST + `[id]` PUT/DELETE on `vision.spaces`, RLS-gated
+   > like `/api/activities`) + wire the ConfigureSpaces screen, and the `category_space_map` mapping UI (⚠️
+   > `category_space_map.org_id` = the CONNECT contributor id, not the vision org id — resolve via
+   > `organisations.connect_contributor_id`; needs the Connect categories list, e.g. via `/api/v1/categories`).
+   > **(b) Activities/Goals/Projects/Vision-statements/Team screens → their existing `/api/*` handlers**
+   > (VISION_BUILD_PLAN §3 surface→spec table; keep the editable-collection shapes; the handlers exist —
+   > `/api/activities`, `/api/goals`, `/api/projects`, etc. — RLS-gated, follow that pattern; thread `D.orgId`
+   > + `authFetch`, optimistic writes, demo fallback). **(c) Timeline Map** live MapLibre — only if the founder
+   > has set `NEXT_PUBLIC_MAPTILER_KEY`; otherwise skip. **(d)** consider the remaining Phase C intelligence
+   > (cross-pollination §4.2, dormancy §4.5) + Phase D (exports/partnerships) if time.
+   > Every DB increment: pre-apply git tag, `apply_migration`, advisors **0 ERROR / 0 new vs the 78 WARN /
+   > 3 INFO baseline** (§3R — the 6 vision reader WARNs reach/engagement/growth/retention/funnel/broadcast are
+   > by design; a NEW gated authenticated-SECDEF reader legitimately adds to that class — document it, don't
+   > panic), rolled-up prod smoke (temp org linked to the busiest contributor `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca`,
+   > fully deleted after; simulate an org_admin via `set_config('request.jwt.claims', …, true)` + a temp
+   > `user_org_roles` row to test the membership gate), migration file committed. Every app increment: tsc 0 ·
+   > eslint 0 · vitest green · next build · `node scripts/build-frontend.js` · in-browser check (launch config
+   > `vision-frontend-built`, :3005 — demo flow must stay intact; the live overlay pattern in live.jsx is the
+   > template: RPC rows → narrative `data` slots, demo fallback on failure; verify via DOM/eval since the
+   > preview screenshot service can be flaky). Offload to `.claude/sessions/` per CLAUDE.md; end with the
+   > instruction-8 close-out + update RESUME_HERE (new §3S + NEXT STEPS), brief row 4d, wiring-spec banner, and
+   > SHARED_DB_CONTRACT §9 if a migration lands. Constraints: narrative copy is `{template,data}` slots only (no
+   > baked numbers/entities); every percentage ships with its numerator and denominator; the smallest org must
+   > never render worse than the demo (use `neutral` variants + real counts, never fabricated data); runtime is
+   > gated on the founder's `vision` PostgREST exposure + Vercel env — code against it, don't block on it.
 3. **Wear launch-hardening fast-follows (code, any session, parallel):** `/api/*` rate limiting —
    **extract `@citizens/utils`(rate-limit) in the same change** (post-merge it's a plain workspace
    package; Vision's copy stayed byte-compatible on purpose); Wear `/api/admin/*` + triage screen
@@ -966,6 +1037,6 @@ npx tsc --noEmit; npx vitest run; npx next lint --dir src; node scripts/build-fr
 
 ### Canonical docs (start here)
 - [VISION.md](VISION.md) · [.github/MASTER_DIRECTION.md](.github/MASTER_DIRECTION.md) — north star + locked technical direction.
-- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **148**, `public`/`vision`/`wear`).
+- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **150**, `public`/`vision`/`wear`).
 - [docs/strategy/ECOSYSTEM_DECISION_BRIEF.md](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md) — **the ecosystem code progress plan** (single source of truth).
 - [docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md](docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md) — Wear Phase 3 spec (**✅ complete — §3L**).

@@ -9,16 +9,27 @@
 > [Citizens_Vision_Backend_Architecture.md](../App%20Planning%20Docs/Vision/Citizens_Vision_Backend_Architecture.md)
 > (calculation-level design), Citizens Vision Product Blueprint (UI pages).
 >
-> **✅ BUILD STATUS (2026-07-03, migrations 147+148 APPLIED — RESUME_HERE §3Q):**
-> §8 Phase A item 1 (`vision.spaces`) and Phase B items 5–7 + 10 are LIVE:
-> `run_daily_snapshots()` + hourly cron (jobid 11, per-space rows included),
-> `reach_per_org`, `engagement_per_org`, `calendar_growth`, `retention_rate`
-> (all SECURITY DEFINER, org-membership-gated, num+den per §5), and the daily
-> MV refresh cron (jobid 12). Vision app: `GET /api/metrics/connect` wraps the
-> four readers; the HTML frontend overlays live rows onto the narrative-engine
-> slots (`live.jsx`). Sections below marked ❌ BUILD for these items are
-> now historical. Still open: advisory engine (§3.7c), funnel/broadcast
-> (§3.4a/d), space-level reach/engagement fns (§3.5b), Phases C+D.
+> **✅ BUILD STATUS (2026-07-03, migrations 147–150 APPLIED — RESUME_HERE §3Q + §3R):**
+> §8 Phase A item 1 (`vision.spaces`) and Phase B items 5–8 + 10 are LIVE, plus
+> Phase C items 11–12:
+> - **mig 147+148 (§3Q):** `run_daily_snapshots()` + hourly cron (jobid 11),
+>   `reach_per_org`, `engagement_per_org`, `calendar_growth`, `retention_rate`,
+>   daily MV refresh cron (jobid 12).
+> - **mig 149 (§3.7c, item 8):** `evaluate_advisory_rules()` + 6-hourly cron
+>   (`vision_advisory_eval`) + `advisory_fill()` + 5 universal org-type-agnostic
+>   advisory templates/rules (reach up/down, low retention, strong engagement,
+>   gone quiet). Hardcoded metric-slug→query map; small-org noise guards.
+> - **mig 150 (§3.4a/§3.4d, items 11–12):** `activity_funnel()` +
+>   `broadcast_effectiveness()` (org-level).
+> All SECURITY DEFINER, org-membership-gated, num+den per §5. Vision app:
+> `GET /api/metrics/connect` wraps the RGRE + funnel + broadcast readers;
+> `GET /api/advisory` + `PATCH /api/advisory/[id]` feed the Advisories screen +
+> home banner; the HTML frontend overlays live rows onto the narrative-engine
+> slots (`live.jsx`). Sections below marked ❌/⚠️ BUILD for these items are now
+> historical. **Still open:** space-level reach/engagement fns (§3.5b — the
+> Spaces directory needs these before it can flip live without regressing below
+> the demo), Spaces/Activities/Goals/etc CRUD frontend wiring, Timeline Map,
+> Phase C items 13–15, Phase D.
 
 ---
 
