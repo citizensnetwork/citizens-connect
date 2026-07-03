@@ -183,7 +183,7 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-03, project `xyiajtrvhlxaeplsiajj`, head = mig 150)
+## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 152)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
@@ -207,6 +207,18 @@ Confirmed live:
   authenticated-callable gated-reader class as the four mig-148 readers — the six vision reader WARNs
   are BY DESIGN, do not re-flag). The advisory engine adds 0 findings (service_role-only). Same
   Connect-published-aggregate cross-schema read pattern.
+- **`vision.*` migs 151+152 (2026-07-04 — RESUME §3S):** the space-level tranche — org-gated SECDEF
+  readers `reach_per_space()` + `engagement_per_space()` (one row per space, distinct persons via
+  `org_active_persons`, num+den per §5), the `is_org_admin`-gated SECDEF mapping **writer**
+  `set_category_space()` (resolves `connect_contributor_id` internally so any linked-org admin can
+  map — not only the `category_space_map` RLS link-owner; verifies the target space belongs to the
+  org), and the `is_org_member`-gated SECDEF mapping **reader** `get_category_spaces()` (pre-fills the
+  Configure Spaces UI). All EXECUTE `authenticated`+`service_role`, `search_path=vision,public,
+  pg_catalog`. **Security advisors: 0 ERROR; new baseline 82 WARN / 3 INFO** (+4 vs 78/3 = exactly
+  these four gated authenticated-callable functions — same intentional class as the six earlier vision
+  readers; the vision authenticated-SECDEF WARNs are BY DESIGN, do not re-flag). Rolled-up prod smokes
+  (temp org → busiest contributor, simulated org_admin, fully deleted): honest zeros pre-mapping, real
+  per-space reach post-mapping, 42501 gates fire, net-zero cleanup.
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers

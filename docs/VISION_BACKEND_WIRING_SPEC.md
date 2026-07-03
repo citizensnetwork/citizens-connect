@@ -9,9 +9,9 @@
 > [Citizens_Vision_Backend_Architecture.md](../App%20Planning%20Docs/Vision/Citizens_Vision_Backend_Architecture.md)
 > (calculation-level design), Citizens Vision Product Blueprint (UI pages).
 >
-> **✅ BUILD STATUS (2026-07-03, migrations 147–150 APPLIED — RESUME_HERE §3Q + §3R):**
+> **✅ BUILD STATUS (2026-07-04, migrations 147–152 APPLIED — RESUME_HERE §3Q + §3R + §3S):**
 > §8 Phase A item 1 (`vision.spaces`) and Phase B items 5–8 + 10 are LIVE, plus
-> Phase C items 11–12:
+> Phase C items 11–12, plus the space-level tranche (§3.5b + §3.5a mapping):
 > - **mig 147+148 (§3Q):** `run_daily_snapshots()` + hourly cron (jobid 11),
 >   `reach_per_org`, `engagement_per_org`, `calendar_growth`, `retention_rate`,
 >   daily MV refresh cron (jobid 12).
@@ -21,15 +21,20 @@
 >   gone quiet). Hardcoded metric-slug→query map; small-org noise guards.
 > - **mig 150 (§3.4a/§3.4d, items 11–12):** `activity_funnel()` +
 >   `broadcast_effectiveness()` (org-level).
+> - **mig 151+152 (§3.5b + §3.5a, item (a)):** `reach_per_space()` +
+>   `engagement_per_space()` (per-space RGRE, one row per space, distinct persons),
+>   the `is_org_admin`-gated mapping writer `set_category_space()`, and the
+>   `is_org_member`-gated mapping reader `get_category_spaces()`.
 > All SECURITY DEFINER, org-membership-gated, num+den per §5. Vision app:
 > `GET /api/metrics/connect` wraps the RGRE + funnel + broadcast readers;
 > `GET /api/advisory` + `PATCH /api/advisory/[id]` feed the Advisories screen +
-> home banner; the HTML frontend overlays live rows onto the narrative-engine
-> slots (`live.jsx`). Sections below marked ❌/⚠️ BUILD for these items are now
-> historical. **Still open:** space-level reach/engagement fns (§3.5b — the
-> Spaces directory needs these before it can flip live without regressing below
-> the demo), Spaces/Activities/Goals/etc CRUD frontend wiring, Timeline Map,
-> Phase C items 13–15, Phase D.
+> home banner; **`GET/POST /api/spaces` + `PUT/DELETE /api/spaces/[id]` +
+> `GET/PUT /api/spaces/mappings`** drive the Spaces directory + Configure Spaces
+> CRUD + category→space mapping; the HTML frontend overlays live rows onto the
+> narrative-engine slots (`live.jsx`). Sections below marked ❌/⚠️ BUILD for these
+> items are now historical. **Still open:** Activities/Goals/Projects/Vision-
+> statements/Team CRUD frontend wiring (handlers exist), Timeline Map, Phase C
+> items 13–15, Phase D.
 
 ---
 
