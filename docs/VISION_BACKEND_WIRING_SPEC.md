@@ -9,11 +9,11 @@
 > [Citizens_Vision_Backend_Architecture.md](../App%20Planning%20Docs/Vision/Citizens_Vision_Backend_Architecture.md)
 > (calculation-level design), Citizens Vision Product Blueprint (UI pages).
 >
-> **✅ BUILD STATUS (2026-07-04, migrations 147–153 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T):**
-> §8 Phase A item 1 (`vision.spaces`) and Phase B items 5–8 + 10 are LIVE, plus
+> **✅ BUILD STATUS (2026-07-04, migrations 147–154 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T + §3U):**
+> §8 Phase A items 1 + Team (§3.11) and Phase B items 5–8 + 10 are LIVE, plus
 > Phase C items 11–12, plus the space-level tranche (§3.5b + §3.5a mapping), plus
 > the editable-collection CRUD frontend (Objectives/Projects/Vision statements/
-> Activities) and the per-activity metrics reader (§3.2b):
+> Activities/**Team**) and the per-activity metrics reader (§3.2b):
 > - **mig 147+148 (§3Q):** `run_daily_snapshots()` + hourly cron (jobid 11),
 >   `reach_per_org`, `engagement_per_org`, `calendar_growth`, `retention_rate`,
 >   daily MV refresh cron (jobid 12).
@@ -31,6 +31,11 @@
 >   Engagement / Rating for CLAIMED activities (join vision.activities →
 >   cc_event_claims → reach/engagement/ratings_per_event). One row per claimed
 >   activity; unclaimed activities absent (frontend renders honest em dashes).
+> - **mig 154 (§3.11, item (a-Team)):** `org_members(org)` — the Team roster reader,
+>   joining public.profiles for DISPLAY-SAFE identity only (id/user_id/full_name/
+>   avatar_url/role/department/title/is_founder — never email/PII, R2). One row per
+>   membership. Wires the Settings Team card live (named roster, org_admin role-change
+>   PATCH / remove DELETE, optimistic + revert; invite POST still stubbed).
 > All SECURITY DEFINER, org-membership-gated, num+den per §5. Vision app:
 > `GET /api/metrics/connect` wraps the RGRE + funnel + broadcast readers;
 > `GET /api/advisory` + `PATCH /api/advisory/[id]` feed the Advisories screen +
@@ -42,10 +47,10 @@
 > revert, demo local-only fallback); the HTML frontend overlays live rows onto the
 > narrative-engine slots + editable-collection state (`live.jsx` + `views.jsx`).
 > Sections below marked ❌/⚠️ BUILD for these items are now historical.
-> **Still open:** the Team screen (§3.11 — needs a `vision.org_members(org)` names
-> reader; the members endpoint carries no display names + a stub invite), Timeline
-> Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`), Phase C items 13–15
-> (cross-pollination §4.2, dormancy/churn §4.5, network graph §4.3), Phase D.
+> **Still open:** Timeline Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`), Phase C items
+> 13–15 (cross-pollination §4.2, dormancy/churn §4.5, network graph §4.3), Phase D
+> (exports/partnerships/scheduled reports). The **member invite path stays stubbed**
+> until a Supabase Admin/invite flow lands (records intent, inserts no role).
 
 ---
 
@@ -822,15 +827,20 @@ CREATE OR REPLACE FUNCTION vision.get_partner_metrics(
 
 | Operation | DB Object | Role Gate | Status |
 |---|---|---|---|
-| List team members | `vision.user_org_roles` (RLS: org_member) | org_member | ✅ READY |
-| Invite member (assign role) | INSERT `user_org_roles` | org_admin | ✅ READY |
-| Change member role | UPDATE `user_org_roles.role` | org_admin | ✅ READY |
-| Assign to department | UPDATE `user_org_roles.department_id` | org_admin | ✅ READY |
-| Remove member | DELETE `user_org_roles` | org_admin (or self-remove) | ✅ READY |
+| List team members (named) | `vision.org_members(org)` SECDEF → joins `public.profiles` display-safe | org_member | ✅ WIRED (mig 154) |
+| Invite member (assign role) | INSERT `user_org_roles` | org_admin | ⚠️ STUBBED (records intent; needs Supabase invite flow) |
+| Change member role | UPDATE `user_org_roles.role` (RLS: `user_org_roles_update_admin`) | org_admin | ✅ WIRED (PATCH) |
+| Assign to department | UPDATE `user_org_roles.department_id` | org_admin | ✅ READY (endpoint accepts department_id) |
+| Remove member | DELETE `user_org_roles` (RLS: `user_org_roles_delete_admin`) | org_admin (or self-remove) | ✅ WIRED (DELETE; route blocks self-remove) |
 | Bootstrap (first admin) | INSERT with `role='org_admin'` when no roles exist for org | authenticated (self) | ✅ READY (bootstrap policy) |
-| View member's title/founder status | `user_org_roles.title`, `.is_founder` | org_member | ✅ READY |
+| View member's title/founder status | `org_members.title`, `.is_founder` | org_member | ✅ WIRED |
 
-**Status:** ✅ FULLY READY.
+**Status:** ✅ WIRED (mig 154 + Settings Team card — RESUME §3U). The list is read
+through the SECURITY DEFINER `vision.org_members(org)` reader (display-safe identity
+only — never email/PII, R2); role-change (PATCH) and remove (DELETE) go through the
+existing `/api/orgs/[orgId]/members` handlers, admin-gated by RLS + hidden for
+non-admins/self in the UI. **The invite POST remains an MVP stub** (no Supabase Admin
+user-lookup/invite flow yet) — the only open piece of §3.11.
 
 ---
 

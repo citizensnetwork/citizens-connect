@@ -183,7 +183,7 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 153)
+## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 154)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
@@ -233,6 +233,20 @@ Confirmed live:
   attending / engagement / null rating; 42501 fires for a non-member; net-zero cleanup. Same
   Connect-published-aggregate cross-schema read pattern (the reader reads service_role-only MVs as
   its SECDEF owner — the mig-148/151 precedent).
+- **`vision.*` mig 154 (2026-07-04 — RESUME §3U):** the Team-roster tranche — org-gated SECDEF
+  reader `org_members(org)` returning ONE ROW PER MEMBERSHIP with **display-safe identity only**
+  (`id` = the `user_org_roles` row id, `user_id`, `full_name`, `avatar_url`, `role`, `department_id`,
+  `department_name`, `title`, `is_founder`) by joining `public.profiles` — **never `profiles.email`
+  or any other PII** (R2; the deployed definition was verified to contain no `email` reference). This
+  is the display-safe cross-schema profile read (same class as Connect's `/api/v1/profiles/[id]`): a
+  SECDEF fn reading `public.profiles` as its owner, hand-picking columns. EXECUTE
+  `authenticated`+`service_role` (anon/public revoked), `search_path=vision,public,pg_catalog`,
+  `is_org_member`/`is_platform_admin` gate. **Security advisors: 0 ERROR; new baseline 84 WARN /
+  3 INFO** (+1 vs 83/3 = exactly `org_members` — the intentional vision authenticated-SECDEF reader
+  class is now TWELVE; do not re-flag). Rolled-up prod smoke (temp org → busiest contributor, temp
+  department + admin role, simulated org_admin): reader returned the real `full_name` via the profiles
+  join + department/title/founder; 42501 fires for a non-member; net-zero cleanup. Role-change /
+  remove keep going through the RLS-gated `user_org_roles` UPDATE/DELETE policies (unchanged).
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers
