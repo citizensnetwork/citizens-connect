@@ -9,7 +9,7 @@
 > [Citizens_Vision_Backend_Architecture.md](../App%20Planning%20Docs/Vision/Citizens_Vision_Backend_Architecture.md)
 > (calculation-level design), Citizens Vision Product Blueprint (UI pages).
 >
-> **✅ BUILD STATUS (2026-07-04, migrations 147–154 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T + §3U):**
+> **✅ BUILD STATUS (2026-07-04, migrations 147–155 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T + §3U + §3V):**
 > §8 Phase A items 1 + Team (§3.11) and Phase B items 5–8 + 10 are LIVE, plus
 > Phase C items 11–12, plus the space-level tranche (§3.5b + §3.5a mapping), plus
 > the editable-collection CRUD frontend (Objectives/Projects/Vision statements/
@@ -36,6 +36,16 @@
 >   avatar_url/role/department/title/is_founder — never email/PII, R2). One row per
 >   membership. Wires the Settings Team card live (named roster, org_admin role-change
 >   PATCH / remove DELETE, optimistic + revert; invite POST still stubbed).
+> - **mig 155 (§4.2, Phase C item 13):** `cross_pollination(org, from, to)` — the
+>   Cross-Pollination Index, the platform's "de-scattering" measure. Across an org's
+>   engaged audience (reuses `org_active_persons`), how many citizens connected in the
+>   window with a `role='contributor'` organisation they'd NEVER engaged with before
+>   (rsvps+follows; first-ever touch inside the window). num+den per §5; org-local
+>   window default 90 days, span capped at 366 (scale guard); NO PII (profiles join =
+>   role+timezone only). App: `GET /api/metrics/cross-pollination` (best-effort,
+>   42501→403) → `live.jsx` overlays a home **crossPollination observation** (neutral
+>   "no discoveries" honest variant when the audience found no new org), with the demo
+>   showcasing it too (obs-5). This is Ephesians 2:19 made measurable.
 > All SECURITY DEFINER, org-membership-gated, num+den per §5. Vision app:
 > `GET /api/metrics/connect` wraps the RGRE + funnel + broadcast readers;
 > `GET /api/advisory` + `PATCH /api/advisory/[id]` feed the Advisories screen +
@@ -47,8 +57,9 @@
 > revert, demo local-only fallback); the HTML frontend overlays live rows onto the
 > narrative-engine slots + editable-collection state (`live.jsx` + `views.jsx`).
 > Sections below marked ❌/⚠️ BUILD for these items are now historical.
-> **Still open:** Timeline Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`), Phase C items
-> 13–15 (cross-pollination §4.2, dormancy/churn §4.5, network graph §4.3), Phase D
+> **Still open:** Timeline Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`; SKIPPED in §3V
+> as the key was still empty), Phase C items 14–15 (dormancy/churn §4.5, network graph
+> §4.3 — item 13 cross-pollination §4.2 is now LIVE via mig 155), Phase D
 > (exports/partnerships/scheduled reports). The **member invite path stays stubbed**
 > until a Supabase Admin/invite flow lands (records intent, inserts no role).
 
@@ -857,7 +868,7 @@ Impression → Consider → Attend → Review → Follow
 **Value:** "72% of people who saw your event considered it, 40% attended, 15% reviewed, 8% followed you"
 **Applies to:** Any org that runs events — the universal conversion metric.
 
-### 4.2 Cross-Pollination Index
+### 4.2 Cross-Pollination Index — ✅ WIRED (mig 155 · RESUME §3V)
 ```
 Are citizens discovering NEW orgs/categories over time?
 ```
@@ -865,6 +876,16 @@ Are citizens discovering NEW orgs/categories over time?
 **Calculation:** Average new-org-discovery rate across citizens engaging with this org.
 **Value:** Measures "de-scattering" — the core Citizens mission. "Your events introduced
 45 citizens to orgs they'd never engaged with before."
+**Built as:** `vision.cross_pollination(p_org_id, p_from, p_to)` — org-gated SECDEF reader
+(same class as migs 148/154). Audience = `org_active_persons` (the org's engaged citizens);
+a "new org" = a `role='contributor'` profile (X ≠ this org) whose FIRST-EVER engagement by
+that citizen (rsvp or follow) lands inside the window. Returns `audience_size`,
+`citizens_discovering`, `new_connections`, `distinct_new_orgs`, `discovery_rate_pct`,
+`avg_new_orgs_per_citizen`, `period_start/end` (num+den per §5). Org-local window, default
+trailing 90 days, **span capped at 366** (scale guard). Associational (audience-scoped
+discovery), NOT causal — the copy says "your engaged citizens discovered", never "caused".
+Surfaced as the home **crossPollination** observation via `GET /api/metrics/cross-pollination`
+(best-effort; neutral honest variant when nobody discovered a new org).
 
 ### 4.3 Community Network Graph
 ```
@@ -1098,9 +1119,9 @@ The `vision` schema must be added to PostgREST "Exposed schemas" first.
 10. **MV refresh cron jobs**
 
 ### Phase C — Deep Analytics (competitive advantage)
-11. **Citizen journey funnel** function
-12. **Broadcast effectiveness** function
-13. **Cross-pollination index** (new intelligence)
+11. **Citizen journey funnel** function ✅ (mig 150)
+12. **Broadcast effectiveness** function ✅ (mig 150)
+13. **Cross-pollination index** (new intelligence) ✅ (mig 155 — §4.2, RESUME §3V)
 14. **Dormancy/churn detection** function
 15. **Community network graph** data
 

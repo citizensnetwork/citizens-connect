@@ -183,7 +183,7 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 154)
+## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 155)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
@@ -247,6 +247,29 @@ Confirmed live:
   department + admin role, simulated org_admin): reader returned the real `full_name` via the profiles
   join + department/title/founder; 42501 fires for a non-member; net-zero cleanup. Role-change /
   remove keep going through the RLS-gated `user_org_roles` UPDATE/DELETE policies (unchanged).
+- **`vision.*` mig 155 (2026-07-04 — RESUME §3V):** Phase C item 13 — the Cross-Pollination Index
+  `cross_pollination(org, from, to)`, the platform's "de-scattering" measure (§4.2): across an org's
+  engaged audience (reuses `org_active_persons`), how many citizens connected in the window with a
+  `role='contributor'` organisation they had NEVER engaged with before (rsvps+follows; a discovery =
+  the citizen's FIRST-EVER engagement with that org falls inside the window). Returns num+den per §5
+  (`audience_size`, `citizens_discovering`, `new_connections`, `distinct_new_orgs`,
+  `discovery_rate_pct`, `avg_new_orgs_per_citizen`, `period_start/end`). Org-local window, default
+  trailing 90 days, **span capped at 366 days** (scale guard — never a full-history scan; leans on
+  `rsvps_user_id_idx`/`events_created_by_date_idx`/`follows_unique`). **No PII** — reads
+  rsvps/follows/events only; the single `public.profiles` join reads `role` + `timezone`, and the
+  deployed definition was verified to contain **no `email`/`full_name`/`avatar_url`**. SECDEF, stable,
+  EXECUTE `authenticated`+`service_role` (anon/public revoked), `search_path=vision,public,pg_catalog`,
+  `is_org_member`/`is_platform_admin` gate. **Security advisors: 0 ERROR;** the before/after fingerprint
+  diff added **exactly one** WARN (`authenticated_security_definer | cross_pollination` — the vision
+  authenticated-SECDEF class is now THIRTEEN; do not re-flag), 0 collateral. Rolled-up prod smoke (temp
+  org → busiest contributor `4a1b3802…`, simulated org_admin via `set_config` jwt + temp role):
+  default-90d = audience 4 / discovering 2 / 3 new connections across 2 orgs / **50.0% (2/4)** / 0.75
+  avg; a 368-day span clamped to 366 (`period_start` moved +2d); non-member → 42501; net-zero cleanup.
+  **⚠️ Baseline reconciliation:** the running WARN tally in these §9 entries (72→…→84) tracks only the
+  newly-added vision **wiring** readers; the LIVE security-advisor absolute is **91 WARN / 3 INFO**
+  after this migration (it also surfaces the ~mig-137 vision helpers, `wear`, and Connect SECDEF fns
+  the linter now enumerates). Future DB increments should gate on a before/after fingerprint **diff**
+  (0 ERROR / +1 expected fn), not the absolute number.
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers
