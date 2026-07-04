@@ -9,9 +9,11 @@
 > [Citizens_Vision_Backend_Architecture.md](../App%20Planning%20Docs/Vision/Citizens_Vision_Backend_Architecture.md)
 > (calculation-level design), Citizens Vision Product Blueprint (UI pages).
 >
-> **✅ BUILD STATUS (2026-07-04, migrations 147–152 APPLIED — RESUME_HERE §3Q + §3R + §3S):**
+> **✅ BUILD STATUS (2026-07-04, migrations 147–153 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T):**
 > §8 Phase A item 1 (`vision.spaces`) and Phase B items 5–8 + 10 are LIVE, plus
-> Phase C items 11–12, plus the space-level tranche (§3.5b + §3.5a mapping):
+> Phase C items 11–12, plus the space-level tranche (§3.5b + §3.5a mapping), plus
+> the editable-collection CRUD frontend (Objectives/Projects/Vision statements/
+> Activities) and the per-activity metrics reader (§3.2b):
 > - **mig 147+148 (§3Q):** `run_daily_snapshots()` + hourly cron (jobid 11),
 >   `reach_per_org`, `engagement_per_org`, `calendar_growth`, `retention_rate`,
 >   daily MV refresh cron (jobid 12).
@@ -25,16 +27,25 @@
 >   `engagement_per_space()` (per-space RGRE, one row per space, distinct persons),
 >   the `is_org_admin`-gated mapping writer `set_category_space()`, and the
 >   `is_org_member`-gated mapping reader `get_category_spaces()`.
+> - **mig 153 (§3.2b, item (a)):** `activity_metrics(org)` — per-activity Reach /
+>   Engagement / Rating for CLAIMED activities (join vision.activities →
+>   cc_event_claims → reach/engagement/ratings_per_event). One row per claimed
+>   activity; unclaimed activities absent (frontend renders honest em dashes).
 > All SECURITY DEFINER, org-membership-gated, num+den per §5. Vision app:
 > `GET /api/metrics/connect` wraps the RGRE + funnel + broadcast readers;
 > `GET /api/advisory` + `PATCH /api/advisory/[id]` feed the Advisories screen +
 > home banner; **`GET/POST /api/spaces` + `PUT/DELETE /api/spaces/[id]` +
 > `GET/PUT /api/spaces/mappings`** drive the Spaces directory + Configure Spaces
-> CRUD + category→space mapping; the HTML frontend overlays live rows onto the
-> narrative-engine slots (`live.jsx`). Sections below marked ❌/⚠️ BUILD for these
-> items are now historical. **Still open:** Activities/Goals/Projects/Vision-
-> statements/Team CRUD frontend wiring (handlers exist), Timeline Map, Phase C
-> items 13–15, Phase D.
+> CRUD + category→space mapping; **`GET/POST/PUT/DELETE /api/goals|projects|vision`
+> + `/api/activities` + `GET /api/metrics/activities|alignment`** drive the live
+> Objectives / Projects / Vision-statements / Activities CRUD screens (optimistic +
+> revert, demo local-only fallback); the HTML frontend overlays live rows onto the
+> narrative-engine slots + editable-collection state (`live.jsx` + `views.jsx`).
+> Sections below marked ❌/⚠️ BUILD for these items are now historical.
+> **Still open:** the Team screen (§3.11 — needs a `vision.org_members(org)` names
+> reader; the members endpoint carries no display names + a stub invite), Timeline
+> Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`), Phase C items 13–15
+> (cross-pollination §4.2, dormancy/churn §4.5, network graph §4.3), Phase D.
 
 ---
 

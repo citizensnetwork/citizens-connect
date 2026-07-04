@@ -183,7 +183,7 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 152)
+## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 153)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
@@ -219,6 +219,20 @@ Confirmed live:
   readers; the vision authenticated-SECDEF WARNs are BY DESIGN, do not re-flag). Rolled-up prod smokes
   (temp org → busiest contributor, simulated org_admin, fully deleted): honest zeros pre-mapping, real
   per-space reach post-mapping, 42501 gates fire, net-zero cleanup.
+- **`vision.*` mig 153 (2026-07-04 — RESUME §3T):** the per-activity tranche — org-gated SECDEF
+  reader `activity_metrics(org)` returning per-Activity Reach / Engagement / Rating for CLAIMED
+  activities (join `vision.activities` → `cc_event_claims` on `cv_activity_id` → `reach_per_event`
+  / `engagement_per_event` / `ratings_per_event` on `cc_event_id`; no `connect_contributor_id`
+  resolution — `cc_event_id` IS the Connect event id keying those views). One row per claimed
+  activity; num+den per §5 (reach ships impression+attending counts, rating ships review_count);
+  `avg_rating` NULL when unreviewed. EXECUTE `authenticated`+`service_role`, `search_path=vision,
+  public,pg_catalog`, `is_org_member`/`is_platform_admin` gate. **Security advisors: 0 ERROR; new
+  baseline 83 WARN / 3 INFO** (+1 vs 82/3 = exactly `activity_metrics` — the intentional vision
+  authenticated-SECDEF reader class is now ELEVEN; do not re-flag). Rolled-up prod smoke (temp org →
+  busiest contributor, simulated org_admin, claimed a real event): reader returned real reach /
+  attending / engagement / null rating; 42501 fires for a non-member; net-zero cleanup. Same
+  Connect-published-aggregate cross-schema read pattern (the reader reads service_role-only MVs as
+  its SECDEF owner — the mig-148/151 precedent).
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers

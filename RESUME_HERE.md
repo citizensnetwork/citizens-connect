@@ -1003,6 +1003,71 @@ worse than the demo).
 
 ---
 
+## 3T. Vision demo→live wiring — increment 4 SHIPPED ✅ (2026-07-04, mig 153 + editable-collection CRUD)
+
+Continued NEXT-STEPS item 2 (brief row **4d**) per wiring-spec §8 item (a): the **editable-collection
+CRUD screens** (Objectives / Projects / Vision statements / Activities) → their existing RLS-gated
+`/api/*` handlers, following the increment-3 ConfigureSpaces pattern EXACTLY. Working log:
+`.claude/sessions/vision-demo-live-wiring-4.md` (gitignored). **4 of the 5 named screens shipped;
+Team deliberately deferred (rationale below).**
+
+### App increment A — Objectives/Projects/Vision-statements live CRUD (NO migration)
+citizens-vision `main` @ **9599d6f** (f80d038 → 9599d6f), `views.jsx` only. Each screen: demo stays
+local-only; in live mode (`D.mode==='live' && D.orgId`) loads real rows via `CV_STORE.authFetch` in a
+useEffect, optimistic add/delete with revert.
+- **Objectives** → `GET /api/goals` + `GET /api/metrics/alignment` (per-goal `alignment_score` = the
+  honest progress-ring proxy), `POST`/`DELETE /api/goals[/id]`. A goal with no active alignment shows
+  `—` / "alignment pending".
+- **Projects** → `GET/POST/DELETE /api/projects[/id]`; live card shows status + description +
+  department (the list endpoint carries no milestones/goal-links → no fabricated milestone dots).
+- **Vision statements** → `GET/POST/DELETE /api/vision[/id]`; statement maps to `title`, optional
+  description shown instead of a fabricated linked-goal count.
+
+### DB + app increment B — per-activity metrics + Activities live CRUD (mig 153)
+- **DB:** Connect `main` @ **8f13d03**, `153_vision_activity_metrics.sql` (tag `connect-pre-mig153`),
+  APPLIED to prod → **next mig # = 154**. `vision.activity_metrics(org)` — per-Activity Reach /
+  Engagement / Rating for CLAIMED activities (join `vision.activities` → `cc_event_claims`
+  [`cv_activity_id`] → `reach_per_event`/`engagement_per_event`/`ratings_per_event` [`cc_event_id`]).
+  One row per claimed activity; num+den per §5; `avg_rating` NULL when unreviewed. SECDEF,
+  `is_org_member`/`is_platform_admin` gate, EXECUTE authenticated+service_role (anon/public revoked).
+- **App:** citizens-vision `main` @ **2c0bc2a**. NEW `GET /api/metrics/activities` (wraps the reader,
+  42501→403, best-effort; +7 tests) + `views.jsx` Activities live (loads `/api/activities` + the
+  metrics reader merged by id; `POST` logs an activity [title/type/date], `DELETE` removes it —
+  optimistic + revert). Column 2 header = **Type** (live) vs **Space** (demo); a claimed activity shows
+  real metrics + a "Claimed from Connect" badge, an unclaimed one shows honest **em dashes** (spec
+  §3.2b); live empty-state prompts logging the first activity. Demo stays local-only.
+
+### Verified
+- **DB gate (mig 153):** advisors **0 ERROR; new baseline 83 WARN / 3 INFO** (+1 vs 82/3 = exactly
+  `activity_metrics` — the vision authenticated-SECDEF reader class is now **ELEVEN**; BY DESIGN, do
+  not re-flag). Rolled-up prod smoke (temp org → busiest contributor `4a1b3802…`, simulated org_admin,
+  claimed real event `0a6130e8…`): reader returned reach 2 / attending 2 / engagement 3.35 / rating
+  null; 42501 fires for a non-member; net-zero cleanup verified; grants auth=✓ anon=✗ svc=✓; deployed
+  fn signature/grants confirmed (no drift).
+- **App gates (both increments):** tsc 0 · eslint clean · **vitest 710/710 (+7)** · next build OK ·
+  build-frontend OK. In-browser (`vision-frontend-built` :3005): demo flow intact (Objectives/Projects/
+  Vision/Activities render + optimistic delete); synthetic live overlay verified all four screens map
+  correctly with honest degradation (Objectives ring 62% from alignment 0.62; Activities Type column +
+  real metrics on the claimed row + `— / — / —` on the unclaimed row); **0 console errors**.
+
+### Team screen — DEFERRED (documented, next increment)
+The 5th screen of item (a). `GET /api/orgs/[orgId]/members` returns `user_org_roles` + `departments(name)`
+but **no member display names** (names live in `public.profiles`, not joined cross-schema), and its
+invite `POST` is an **MVP stub** (records intent, inserts no role). A nameless live team list would render
+**worse than the demo's named list** (VISION.md litmus #3), so it was not force-shipped. Proper fix = a
+`vision.org_members(org)` SECDEF reader (mig 154) joining `public.profiles` for display-safe identity
+(`user_id, full_name, avatar_url, role, department_name, title, is_founder`), gated `is_org_member`; then
+wire the Settings **Team** card live (role change via `PATCH`, remove via `DELETE` — admin only; the
+invite path stays stubbed until a Supabase Admin/invite flow lands). Spec is item (a-Team) in NEXT STEPS.
+
+### ⛔ Runtime still gated on founder (unchanged §3F/§3O/§3Q/§3R/§3S deploy gates)
+`vision` schema → PostgREST **Exposed schemas**; Vision Vercel env (`NEXT_PUBLIC_SUPABASE_URL` + anon key,
+optional MAPTILER key) + `CONNECT_API_BASE_URL`; Supabase Auth redirect URL. Until then the app lands on
+demo mode by design. Per-activity metrics light up only once an org links a Connect contributor AND claims
+Connect events onto activities (honest em dashes before that — never worse than the demo).
+
+---
+
 ## ▶▶ NEXT STEPS (start here in a fresh chat)
 
 > **Step 5 is EXECUTED (§3P): the monorepo exists** — [PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23)
@@ -1010,66 +1075,71 @@ worse than the demo).
 > Roadmap order = the ratified [brief §6](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md).
 
 1. **Founder cutover of the monorepo ⛔ (dashboard, not code)** — the §3P checklist above.
-2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increments 1 ✅ §3Q + 2 ✅ §3R + 3 ✅ §3S).**
+2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increments 1 ✅ §3Q + 2 ✅ §3R + 3 ✅ §3S + 4 ✅ §3T).**
    **Continuation prompt for the next session (self-contained — copy from here):**
 
-   > Read `apps/connect/VISION.md` (or VISION.md in citizens-connect) first, run its alignment
-   > self-prompt, then RESUME_HERE §3Q + §3R + §3S + this item, then CLAUDE.md (instruction 8: end with a
-   > three-part close-out DONE / LEFT / paste-ready CONTINUATION PROMPT). Step 5 (monorepo) is
-   > EXECUTED — PR citizens-wear#23 pending founder merge; do NOT re-lift; work lands in the ORIGINAL
-   > repos (DB migrations → citizens-connect `supabase/migrations/`, head **152**, next # **153**;
-   > Vision app code → citizens-vision, main @ `f80d038`). Supabase project ref = `xyiajtrvhlxaeplsiajj`.
-   > Increments 1+2+3 shipped: `vision.spaces` + daily-snapshot cron (jobid 11) + the four org-level RGRE
-   > readers (`reach_per_org`/`engagement_per_org`/`calendar_growth`/`retention_rate`, migs 147+148); the
-   > advisory engine (mig 149, cron `vision_advisory_eval`) + `activity_funnel`/`broadcast_effectiveness`
-   > (mig 150); and the SPACE-level tranche (migs 151+152) — `reach_per_space`/`engagement_per_space` +
-   > the `set_category_space` writer + `get_category_spaces` reader. App side: `GET /api/metrics/connect`
-   > (RGRE + funnel + broadcast), `GET/PATCH /api/advisory`, `GET/POST /api/spaces` + `[id]` PUT/DELETE +
-   > `GET/PUT /api/spaces/mappings`, and `live.jsx` overlays home pulse/observations/advisory-banner +
-   > Analytics (Reach/Growth/Retention/Engagement/Funnel/Broadcast) + the Spaces directory + Configure
-   > Spaces CRUD & category→space mapping — all live with graceful demo fallback. Advisor baseline is now
-   > **82 WARN / 3 INFO**; the ten vision authenticated-SECDEF WARNs (reach/engagement/growth/retention/
-   > funnel/broadcast org-level + reach_per_space/engagement_per_space/set_category_space/get_category_spaces)
-   > are BY DESIGN — do NOT re-flag. Continue the wiring-spec critical path
-   > (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its 2026-07-04 status banner) in gated increments, in this
-   > order unless you find a better one (you have room for creativity and discernment — propose improvements
-   > as you go):
-   > **(a) Activities / Goals / Projects / Vision-statements / Team screens → their existing `/api/*` handlers.**
-   > These handlers ALL already exist and are RLS-gated (`/api/activities` +`[id]`, `/api/goals` +`[id]`
-   > +`[id]/alignment`, `/api/projects` +`[id]` +milestones/goals/activities, `/api/vision` [vision-statements]
-   > +`[id]`, `/api/orgs/[orgId]/members` [team]). The work is FRONTEND wiring in citizens-vision
-   > `src/frontend/app/views.jsx` (the editable-collection screens: Activities, Objectives[goals], Projects,
-   > VisionStatements, and a Team surface) + `live.jsx` — thread `D.orgId` + `window.CV_STORE.authFetch`,
-   > optimistic writes with revert-on-failure, demo fallback when `D.mode!=='live'`. Follow the increment-3
-   > ConfigureSpaces pattern EXACTLY (it's the template: load real rows in live mode, POST/PUT/DELETE with
-   > optimistic + revert, keep demo local-only). Keep the data.jsx editable-collection shapes as the contract.
-   > Note the Connect-claim flow already exists (`/api/connect/events|places`, cc_event_claims) — Activities
-   > can surface claimed events' reach/engagement per §3.2b. This is mostly a NO-migration increment (the DB is
-   > ready); only add a migration if you find a genuine reader gap (e.g. a per-activity metrics helper).
-   > **(b) Timeline Map** live MapLibre — only if the founder has set `NEXT_PUBLIC_MAPTILER_KEY` (the build
-   > passes it through as `__CV_ENV.MAPTILER_KEY`); the `/api/map/activities` + `/api/timeline` handlers exist.
-   > Otherwise skip (it already falls back to a placeholder card).
+   > Read VISION.md in citizens-connect first, run its alignment self-prompt, then RESUME_HERE §3Q + §3R +
+   > §3S + §3T + this item, then CLAUDE.md (instruction 8: end with a three-part close-out DONE / LEFT /
+   > paste-ready CONTINUATION PROMPT). Step 5 (monorepo) is EXECUTED — PR citizens-wear#23 pending founder
+   > merge; do NOT re-lift; work lands in the ORIGINAL repos (DB migrations → citizens-connect
+   > `supabase/migrations/`, head **153**, next # **154**; Vision app code → citizens-vision, main @
+   > `2c0bc2a`). Supabase project ref = `xyiajtrvhlxaeplsiajj`. Increments 1–4 shipped: `vision.spaces` +
+   > daily-snapshot cron (jobid 11) + the four org-level RGRE readers (migs 147+148); the advisory engine
+   > (mig 149, cron `vision_advisory_eval`) + `activity_funnel`/`broadcast_effectiveness` (mig 150); the
+   > SPACE tranche (migs 151+152) — `reach_per_space`/`engagement_per_space` + `set_category_space` writer +
+   > `get_category_spaces` reader; and the PER-ACTIVITY reader `activity_metrics` (mig 153). App side:
+   > `GET /api/metrics/connect` (RGRE + funnel + broadcast), `GET/PATCH /api/advisory`, `GET/POST /api/spaces`
+   > +`[id]` PUT/DELETE + `GET/PUT /api/spaces/mappings`, **`GET/POST/DELETE /api/goals|projects|vision`,
+   > `/api/activities` +`[id]`, `GET /api/metrics/activities|alignment`** — and `live.jsx` overlays home
+   > pulse/observations/advisory-banner + Analytics + Spaces directory + Configure Spaces, while `views.jsx`
+   > runs live optimistic CRUD on Objectives / Projects / Vision-statements / Activities (demo local-only
+   > fallback). Advisor baseline is now **83 WARN / 3 INFO**; the ELEVEN vision authenticated-SECDEF WARNs
+   > (reach/engagement/growth/retention/funnel/broadcast org-level + reach_per_space/engagement_per_space/
+   > set_category_space/get_category_spaces + activity_metrics) are BY DESIGN — do NOT re-flag. Continue the
+   > wiring-spec critical path (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its 2026-07-04 status banner) in
+   > gated increments, in this order unless you find a better one (you have room for creativity and
+   > discernment — propose improvements as you go):
+   > **(a-Team) FINISH item (a): the Team screen** — the only editable screen of item (a) not yet wired. It
+   > was deferred BY DESIGN: `GET /api/orgs/[orgId]/members` returns `user_org_roles` + `departments(name)`
+   > but NO member display names (names live in `public.profiles`, not joined cross-schema), and its invite
+   > `POST` is an MVP stub, so a nameless live list would read WORSE than the demo's named list (litmus #3).
+   > Fix = **mig 154 `vision.org_members(org)`** — a SECDEF reader joining `public.profiles` for display-safe
+   > identity (`user_id, full_name, avatar_url, role, department_name, title, is_founder`), gated
+   > `is_org_member`/`is_platform_admin` (42501), EXECUTE authenticated+service_role, `search_path=vision,
+   > public,pg_catalog` (same class as the mig-148/151/153 readers — it adds ONE by-design WARN → baseline
+   > 84/3). Then wire the Settings **Team** card (`views.jsx` `Settings`) live: load via a new
+   > `GET /api/orgs/[orgId]/members` behavior (or a thin `/api/team` that calls the reader), role change →
+   > `PATCH /api/orgs/[orgId]/members`, remove → `DELETE` — admin-only, optimistic + revert; leave the invite
+   > path stubbed (note it). Demo stays the local `D.team` list. **The reader reads `public.profiles` as its
+   > SECDEF owner — display-safe columns only, never email/PII** (SHARED_DB_CONTRACT R2; mirror Connect's
+   > `/api/v1/profiles/[id]` display-safe select). 
+   > **(b) Timeline Map** live MapLibre — only if the founder has set `NEXT_PUBLIC_MAPTILER_KEY` (build passes
+   > it as `__CV_ENV.MAPTILER_KEY`); `/api/map/activities` + `/api/timeline` exist. Else skip (placeholder card).
    > **(c)** remaining Phase C intelligence — cross-pollination index (§4.2) + dormancy/churn early-warning
-   > (§4.5) as new org-gated SECDEF readers + surfaces — and Phase D (exports/partnerships/scheduled reports),
-   > if time.
-   > Every DB increment (only if one is genuinely needed): pre-apply git tag, `apply_migration`, advisors
-   > **0 ERROR / 0 new vs the 82 WARN / 3 INFO baseline** (§3S — the ten vision reader/writer WARNs are by
-   > design; a NEW gated authenticated-SECDEF fn legitimately adds to that class — document it, don't panic),
-   > rolled-up prod smoke (temp org linked to the busiest contributor `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca`,
-   > fully deleted after; simulate an org_admin via `set_config('request.jwt.claims','{"sub":"<uid>","role":"authenticated"}',true)`
-   > + a temp `vision.user_org_roles` row to test the membership gate — the smoke pattern is in §3S / the
-   > session log), migration file committed. Every app increment: tsc 0 · eslint 0 · vitest green · next build ·
-   > `node scripts/build-frontend.js` · in-browser check (launch config `vision-frontend-built`, :3005 — demo
-   > flow must stay intact; the live overlay pattern in live.jsx is the template: API rows → narrative `data`
-   > slots / editable-collection state, demo fallback on failure; verify via DOM/eval and note the nav collapses
-   > to icon-only below 1000px — override `window.innerWidth=1280` + dispatch `resize` to expand sub-nav in the
-   > headless preview; React synthetic onChange won't fire from a programmatic dispatch, so cover writes with an
-   > API test + the DB smoke instead). Offload to `.claude/sessions/` per CLAUDE.md; end with the instruction-8
-   > close-out + update RESUME_HERE (new §3T + NEXT STEPS), brief row 4d, wiring-spec banner, and
-   > SHARED_DB_CONTRACT §9 if a migration lands. Constraints: narrative copy is `{template,data}` slots only (no
-   > baked numbers/entities); every percentage ships with its numerator and denominator; the smallest org must
-   > never render worse than the demo (use `neutral` variants + real counts, never fabricated data); runtime is
-   > gated on the founder's `vision` PostgREST exposure + Vercel env — code against it, don't block on it.
+   > (§4.5) as new org-gated SECDEF readers + surfaces — and Phase D (exports/partnerships/scheduled reports).
+   > Every DB increment (only if genuinely needed): pre-apply git tag, `apply_migration`, advisors **0 ERROR /
+   > 0 new vs the 83 WARN / 3 INFO baseline** (§3T — the eleven vision reader/writer WARNs are by design; a NEW
+   > gated authenticated-SECDEF fn legitimately adds to that class — document it, don't panic), rolled-up prod
+   > smoke (temp org linked to the busiest contributor `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca`, fully deleted
+   > after; simulate an org_admin via a lateral `set_config('request.jwt.claims','{"sub":"<uid>","role":
+   > "authenticated"}',false)` + a temp `vision.user_org_roles` row to test the membership gate — the exact
+   > pattern is in §3T / the session log `vision-demo-live-wiring-4.md`), migration file committed AND
+   > byte-matched (verify the deployed fn via `pg_get_functiondef` + `has_function_privilege`). Every app
+   > increment: tsc 0 · eslint 0 · vitest green · next build · `node scripts/build-frontend.js` · in-browser
+   > check (launch config `vision-frontend-built`, :3005 — demo flow must stay intact; the live overlay pattern
+   > in live.jsx + the per-screen `liveCtx()`/`useEffect` pattern in views.jsx are the templates: API rows →
+   > narrative `data` slots / editable-collection state, demo fallback on failure; verify via DOM/eval, and note
+   > (i) the nav collapses to icon-only below 1000px — override `window.innerWidth=1280` + dispatch `resize`
+   > BEFORE entering demo to expand the sub-nav; (ii) React re-renders async — read the DOM in a SEPARATE eval
+   > AFTER a click, not the same tick; (iii) React synthetic onChange won't fire from a programmatic dispatch,
+   > so cover write paths with an API test + the DB smoke, and stub `window.CV_STORE.authFetch` + set
+   > `window.CV_DATA.mode='live'`/`.orgId` then re-navigate to a screen to exercise its live map). Offload to
+   > `.claude/sessions/` per CLAUDE.md; end with the instruction-8 close-out + update RESUME_HERE (new §3U +
+   > NEXT STEPS), brief row 4d, wiring-spec banner, and SHARED_DB_CONTRACT §9 if a migration lands. Constraints:
+   > narrative copy is `{template,data}` slots only (no baked numbers/entities); every percentage ships with its
+   > numerator and denominator; the smallest org must never render worse than the demo (use `neutral` variants +
+   > real counts, never fabricated data — degrade a missing live source to an honest em dash); runtime is gated
+   > on the founder's `vision` PostgREST exposure + Vercel env — code against it, don't block on it.
 3. **Wear launch-hardening fast-follows (code, any session, parallel):** `/api/*` rate limiting —
    **extract `@citizens/utils`(rate-limit) in the same change** (post-merge it's a plain workspace
    package; Vision's copy stayed byte-compatible on purpose); Wear `/api/admin/*` + triage screen
@@ -1108,6 +1178,6 @@ npx tsc --noEmit; npx vitest run; npx next lint --dir src; node scripts/build-fr
 
 ### Canonical docs (start here)
 - [VISION.md](VISION.md) · [.github/MASTER_DIRECTION.md](.github/MASTER_DIRECTION.md) — north star + locked technical direction.
-- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **152**, `public`/`vision`/`wear`).
+- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **153**, `public`/`vision`/`wear`).
 - [docs/strategy/ECOSYSTEM_DECISION_BRIEF.md](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md) — **the ecosystem code progress plan** (single source of truth).
 - [docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md](docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md) — Wear Phase 3 spec (**✅ complete — §3L**).
