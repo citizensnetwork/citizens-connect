@@ -1183,6 +1183,75 @@ engages other contributors (honest neutral before that — never worse than the 
 
 ---
 
+## 3W. Vision demo→live wiring — increment 7 SHIPPED ✅ (2026-07-05, mig 156 — dormancy §4.5)
+
+Continued the wiring-spec §8 critical path past cross-pollination. **Item (b) Timeline Map
+re-confirmed SKIPPED** — the built `citizens-vision/public/config.js` still has
+`MAPTILER_KEY: ""`, so the placeholder stays (a map with no key is never shipped). Proceeded
+to item (c) **Phase C item 14 = the Dormancy / Churn early-warning (§4.5)** — the "de-scattering
+GUARDIAN": the recency complement to cross-pollination (mig 155). Where cross-pollination measures
+the Body coming *together*, dormancy watches for a fellow contributor going *quiet* so the community
+can respond before they fade unseen (VISION litmus #3 — honour + surface the small). Working log:
+`.claude/sessions/vision-demo-live-wiring-7.md` (gitignored).
+
+**Founder decision (AskUserQuestion this session):** dormancy SUBJECT = **"orbit contributors"** —
+the OTHER `role='contributor'` orgs THIS org's own engaged audience connects with (rsvps+follows),
+NOT the org's own citizens (no citizen PII) and NOT partnership-only. Uses exactly §4.5's stated
+source (events/broadcasts, which only orgs author); distinct from §4.3 network graph (partner-finding)
+— this is a recency ALARM. Public org names are resolved app-side; the reader stays PII-free.
+
+### DB — Connect mig 156 APPLIED to prod → **next mig # = 157**
+- **156_vision_dormancy_watch** (tag `connect-pre-mig156`, commit `44d5c68`): **`dormancy_watch(org,
+  p_threshold_days DEFAULT 60, p_lookback_days DEFAULT 180)`** — org-gated SECDEF reader (same class as
+  migs 148/154/155). Audience = `org_active_persons` over the lookback (clamped 30..366); orbit = the
+  mig-155 `inwin` pattern (audience → `role='contributor'` orgs ≠ this one, rsvps+follows, org-local
+  window); `last_activity = GREATEST(latest published event.created_at, latest non-deleted
+  broadcast_messages.created_at)` — orgs that NEVER spoke (NULL) are excluded ("previously active");
+  dormant = quiet > threshold (clamped 1..365). Returns ONE summary row (`threshold_days`, `orbit_size`
+  den, `dormant_count` num, `dormant_pct`, `max_days_quiet`, `dormant_ids uuid[]` cap 20, `period_*`) —
+  num+den per §5. SECDEF, stable, EXECUTE `authenticated`+`service_role` (anon/public revoked),
+  `search_path=vision,public,pg_catalog`, `is_org_member`/`is_platform_admin` gate. NO new index (leans
+  on `rsvps_user_id_idx`/`follows_follower_idx`/`follows_unique`/`events_created_by_date_idx`).
+- **Verified**: advisors **0 ERROR**; before/after fingerprint DIFF added **exactly ONE** WARN
+  (`authenticated_security_definer | dormancy_watch` — the vision authenticated-SECDEF class is now
+  **FOURTEEN**; BY DESIGN, do NOT re-flag), 0 collateral, **`anon_security_definer` unchanged at 10**.
+  **True LIVE advisor absolute now 92 WARN / 3 INFO.** Deployed fn verified: secdef✓ stable✓ search_path
+  pinned✓ auth✓/anon✗/svc✓, and **`email`/`full_name`/`avatar_url` all absent** from the definition
+  (PII-free). Rolled-up prod smoke (temp org `a5156000…` → busiest contributor `4a1b3802…`, simulated
+  org_admin via `set_config` jwt + temp `user_org_roles`): default-60d = **orbit 2 / dormant 2 / 100.0%
+  (2/2) / max 72d quiet / 2 dormant_ids / window 2026-01-06→2026-07-04**; threshold 90d (>72) → 0 dormant
+  but orbit still 2 (neutral path + empty `dormant_ids` coalesce); non-member → 42501; net-zero cleanup.
+
+### App — citizens-vision `main` @ **3c77959** (f9fdb23 → 3c77959)
+- **NEW `GET /api/metrics/dormancy?org_id&days`** — wraps the reader (`days` = dormancy threshold,
+  default 60, 7..365 clamp; the reader is the source of truth on bounds), 42501→403, best-effort.
+  Resolves `dormant_ids`→PUBLIC names via **`connectApi.getProfile(id)` → Connect `/api/v1/profiles/{id}`**
+  (display-safe; `Promise.allSettled`, drops failures) — **never returns the raw ids**. +12 handler tests.
+- **`src/lib/connect/api.ts`**: +`V1Profile` interface + `connectApi.getProfile(id)`.
+- **`data.jsx`**: dormancy template gains a **`bodyNoNames`** variant (count/days/orbit — num+den, no
+  `{names}` slot) for when the Connect directory can't resolve names (authoring rule 4).
+- **`live.jsx`**: `applyOverlay(+dormancy param)` **unshifts a synthesized dormancy advisory into
+  D.advisories** (no pre-rendered title → ObservationCard fills the narrative template, same path as the
+  demo advisory); gated on `orbit_size>0`; **neutral** ("All contributors are active.") when 0 dormant;
+  `bodyKey='bodyNoNames'` when names empty; **suppressed** on a null row / no orbit. Best-effort fetch
+  alongside advisories/spaces/cross-pollination.
+- **Gates**: tsc 0 · eslint 0 (`npx eslint .`) · **vitest 737/737 (+12)** · next build OK
+  (`/api/metrics/dormancy` registered) · build-frontend OK. **Verified in-browser** (built bundle :3005):
+  demo flow intact (Advisories renders the demo dormancy "3 contributors have gone quiet — J. Mokoena…"
+  + broadcast; **0 console errors**); synthetic live overlay — all 5 scenarios correct: withNames
+  ("2 contributors have gone quiet" / "…— Grace Foundation, Hope Outreach."), noNames→`bodyNoNames`
+  ("3 organisations your community engages with haven't posted in 60+ days (3 of 5 in your orbit)."),
+  neutral ("All contributors are active."), noOrbit + nullDormancy both suppressed.
+
+### ⛔ Runtime still gated on founder (unchanged §3F/§3O/§3Q–§3V deploy gates)
+`vision` schema → PostgREST **Exposed schemas**; Vision Vercel env (`NEXT_PUBLIC_SUPABASE_URL` + anon key,
+optional MAPTILER key) + `CONNECT_API_BASE_URL` (the dormancy name resolution needs Connect's `/api/v1`);
+Supabase Auth redirect URL. Until then the app lands on demo mode by design. Dormancy lights up once an org
+links a Connect contributor AND its audience engages other contributors (honest suppression before that —
+never worse than the demo).
+
+---
+
 ## ▶▶ NEXT STEPS (start here in a fresh chat)
 
 > **Step 5 is EXECUTED (§3P): the monorepo exists** — [PR #23](https://github.com/citizensnetwork/citizens-wear/pull/23)
@@ -1190,84 +1259,99 @@ engages other contributors (honest neutral before that — never worse than the 
 > Roadmap order = the ratified [brief §6](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md).
 
 1. **Founder cutover of the monorepo ⛔ (dashboard, not code)** — the §3P checklist above.
-2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increments 1 ✅ §3Q + 2 ✅ §3R + 3 ✅ §3S + 4 ✅ §3T + 5 ✅ §3U + 6 ✅ §3V — item (a) 100% done AND Phase C item 13 cross-pollination LIVE; next = (b) Timeline Map [still a SKIP until the MapTiler key is set] / (c) Phase C item 14 dormancy-churn §4.5, then item 15 network graph §4.3, then Phase D).**
+2. **Vision demo→live wiring — CONTINUE (code, any session — the biggest lever; increments 1 ✅ §3Q + 2 ✅ §3R + 3 ✅ §3S + 4 ✅ §3T + 5 ✅ §3U + 6 ✅ §3V + 7 ✅ §3W — item (a) 100% done AND Phase C items 13 cross-pollination §4.2 + 14 dormancy §4.5 LIVE; next = (b) Timeline Map [still a SKIP until the MapTiler key is set] / (c) Phase C item 15 network graph §4.3, then Phase D).**
    **Continuation prompt for the next session (self-contained — copy from here):**
 
    > Read VISION.md in citizens-connect first, run its alignment self-prompt, then RESUME_HERE §3Q + §3R +
-   > §3S + §3T + §3U + §3V + this item, then CLAUDE.md (instruction 8: end with a three-part close-out DONE /
-   > LEFT / paste-ready CONTINUATION PROMPT). Step 5 (monorepo) is EXECUTED — PR citizens-wear#23 pending
+   > §3S + §3T + §3U + §3V + §3W + this item, then CLAUDE.md (instruction 8: end with a three-part close-out
+   > DONE / LEFT / paste-ready CONTINUATION PROMPT). Step 5 (monorepo) is EXECUTED — PR citizens-wear#23 pending
    > founder merge; do NOT re-lift; work lands in the ORIGINAL repos (DB migrations → citizens-connect
-   > `supabase/migrations/`, head **155**, next # **156**; Vision app code → citizens-vision, main @
-   > `f9fdb23`). Supabase project ref = `xyiajtrvhlxaeplsiajj`; busiest contributor for smokes =
-   > `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca`. Increments 1–6 shipped: `vision.spaces` + daily-snapshot cron
+   > `supabase/migrations/`, head **156**, next # **157**; Vision app code → citizens-vision, main @
+   > `3c77959`). Supabase project ref = `xyiajtrvhlxaeplsiajj`; busiest contributor for smokes =
+   > `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca`. Increments 1–7 shipped: `vision.spaces` + daily-snapshot cron
    > (jobid 11) + the four org-level RGRE readers (migs 147+148); the advisory engine (mig 149, cron
    > `vision_advisory_eval`) + `activity_funnel`/`broadcast_effectiveness` (mig 150); the SPACE tranche
    > (migs 151+152) — `reach_per_space`/`engagement_per_space` + `set_category_space` writer +
-   > `get_category_spaces` reader; the PER-ACTIVITY reader `activity_metrics` (mig 153); the **Team roster
-   > reader `org_members(org)` (mig 154)**; and the **Cross-Pollination Index `cross_pollination(org,from,to)`
+   > `get_category_spaces` reader; the PER-ACTIVITY reader `activity_metrics` (mig 153); the Team roster
+   > reader `org_members(org)` (mig 154); the **Cross-Pollination Index `cross_pollination(org,from,to)`
    > (mig 155, §4.2)** — the "de-scattering" measure (audience = `org_active_persons`; a discovery = a
-   > citizen's first-ever rsvp/follow to a `role='contributor'` org ≠ this one, inside the window; num+den;
-   > 90-day default, span capped at 366; NO PII). App side: `GET /api/metrics/connect` (RGRE + funnel +
-   > broadcast), `GET /api/metrics/cross-pollination`, `GET/PATCH /api/advisory`, `GET/POST /api/spaces`
-   > +`[id]` PUT/DELETE + `GET/PUT /api/spaces/mappings`, `GET/POST/DELETE /api/goals|projects|vision`,
-   > `/api/activities` +`[id]`, `GET /api/metrics/activities|alignment`, `GET /api/orgs/[orgId]/members`
-   > (named via `org_members`) + PATCH/DELETE — `live.jsx` overlays home pulse/observations/advisory-banner +
-   > **the crossPollination observation** + Analytics + Spaces directory + Configure Spaces (+ sets
-   > `D.orgRole`/`D.userId`), while `views.jsx` runs live optimistic CRUD on Objectives / Projects /
-   > Vision-statements / Activities / Team (demo local-only fallback). **Item (a) of wiring-spec §8 is
-   > COMPLETE; Phase C items 11–13 are LIVE.** The THIRTEEN vision authenticated-SECDEF WARNs
-   > (reach/engagement/growth/retention/funnel/broadcast org-level + reach_per_space/engagement_per_space/
-   > set_category_space/get_category_spaces + activity_metrics + org_members + **cross_pollination**) are BY
-   > DESIGN — do NOT re-flag. **Advisor-baseline reality:** the per-mig running tally in the docs (72→…→84)
-   > counts only the newly-added vision wiring readers; the **true LIVE advisor absolute is 91 WARN / 3 INFO**
-   > (it also enumerates ~mig-137 vision helpers + wear + Connect SECDEF fns). **Gate on a before/after
-   > fingerprint DIFF, not the number** — save the sorted `(level|name|fn)` set before applying, re-fetch
-   > after, and require 0 ERROR + exactly your new fn added, 0 collateral. Continue the wiring-spec critical
-   > path (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its 2026-07-04 status banner) in gated increments, in
-   > this order unless you find a better one (you have room for creativity and discernment — propose
-   > improvements as you go):
+   > citizen's first-ever rsvp/follow to a `role='contributor'` org ≠ this one, inside the window); and the
+   > **Dormancy / Churn early-warning `dormancy_watch(org, threshold_days, lookback_days)` (mig 156, §4.5)** —
+   > the de-scattering GUARDIAN: across an org's audience, which OTHER `role='contributor'` orgs in the ORBIT
+   > (audience rsvps+follows — the mig-155 `inwin` pattern) have gone quiet (`last_activity =
+   > GREATEST(latest published event, latest non-deleted broadcast)` older than a threshold, default 60d,
+   > lookback 180d; num+den; NO PII — dormant orgs' PUBLIC names resolved app-side). App side:
+   > `GET /api/metrics/connect` (RGRE + funnel + broadcast), `GET /api/metrics/cross-pollination`,
+   > **`GET /api/metrics/dormancy`** (days = threshold; resolves names via `connectApi.getProfile` →
+   > `/api/v1/profiles/{id}`), `GET/PATCH /api/advisory`, `GET/POST /api/spaces` +`[id]` PUT/DELETE +
+   > `GET/PUT /api/spaces/mappings`, `GET/POST/DELETE /api/goals|projects|vision`, `/api/activities` +`[id]`,
+   > `GET /api/metrics/activities|alignment`, `GET /api/orgs/[orgId]/members` (named via `org_members`) +
+   > PATCH/DELETE — `live.jsx` overlays home pulse/observations/advisory-banner + the crossPollination
+   > observation + **the dormancy advisory** (`applyOverlay(org, m, advisories, spaces, xpoll, dormancy)` —
+   > synthesized into `D.advisories`, gated on `orbit_size>0`, neutral/`bodyNoNames`/suppressed variants) +
+   > Analytics + Spaces directory + Configure Spaces (+ sets `D.orgRole`/`D.userId`), while `views.jsx` runs
+   > live optimistic CRUD on Objectives / Projects / Vision-statements / Activities / Team (demo local-only
+   > fallback). **Item (a) of wiring-spec §8 is COMPLETE; Phase C items 11–14 are LIVE.** The FOURTEEN vision
+   > authenticated-SECDEF WARNs (reach/engagement/growth/retention/funnel/broadcast org-level +
+   > reach_per_space/engagement_per_space/set_category_space/get_category_spaces + activity_metrics +
+   > org_members + cross_pollination + **dormancy_watch**) are BY DESIGN — do NOT re-flag. **Advisor-baseline
+   > reality:** the per-mig running tally in the docs counts only the newly-added vision wiring readers; the
+   > **true LIVE advisor absolute is 92 WARN / 3 INFO** after mig 156 (it also enumerates ~mig-137 vision
+   > helpers + wear + Connect SECDEF fns). **Gate on a before/after fingerprint DIFF, not the number** — save
+   > the sorted `(level|name|fn)` set before applying (advisors output is ~100k chars → it saves to a file;
+   > parse it with Python: `json.load(...)["result"]["lints"]`, count by `level`+`name`), re-fetch after, and
+   > require 0 ERROR + exactly your new fn added + `anon_security_definer` count unchanged, 0 collateral.
+   > Continue the wiring-spec critical path (docs/VISION_BACKEND_WIRING_SPEC.md §8 — see its 2026-07-05 status
+   > banner) in gated increments, in this order unless you find a better one (you have room for creativity and
+   > discernment — propose improvements as you go):
    > **(b) Timeline Map — live MapLibre.** ONLY if the founder has set `NEXT_PUBLIC_MAPTILER_KEY` — CHECK the
    > built `citizens-vision/public/config.js` / `window.__CV_ENV.MAPTILER_KEY` FIRST (it was still empty in
-   > §3V → SKIP). `/api/map/activities` + `/api/timeline` already exist. `views.jsx` `TimelineMap()` is a
+   > §3V–§3W → SKIP). `/api/map/activities` + `/api/timeline` already exist. `views.jsx` `TimelineMap()` is a
    > placeholder card; wire it to MapLibre GL (CDN UMD already loaded) with single-event reach rings + period
    > playback + range compare per the design handoff, guarding on the key (no key → keep the placeholder —
    > never a broken map). If unset, SKIP and note it, don't block.
-   > **(c) Phase C items 14–15 + Phase D.** Next = **dormancy/churn early-warning (§4.5)** — "which
-   > previously-active orgs/citizens have gone quiet?" (days since last activity from events.created_at /
-   > broadcast_messages.created_at; flag > threshold). A `dormancy` narrative template ALREADY EXISTS in
-   > `data.jsx` (title/body/neutral) + a demo advisory — wire a new org-gated SECDEF reader (mirror the
-   > mig-148/155 class EXACTLY) into it via a best-effort `/api/*` route + live.jsx overlay. Then **network
-   > graph (§4.3)** — org pairs sharing audiences (feeds partnerships). Then Phase D (exports/partnerships/
-   > scheduled reports). Mind performance — bound windows, lean on existing indexes (rsvps_user_id_idx,
-   > events_created_by_date_idx, follows_unique), prepare for scale.
+   > **(c) Phase C item 15 + Phase D.** Next = **network graph (§4.3)** — "which orgs share your audience? Who
+   > could you partner with?" For THIS org, the other `role='contributor'` orgs whose audiences overlap most
+   > with yours (citizens who engaged BOTH — mutual attendees+followers); num+den (shared / your audience).
+   > Reuse `org_active_persons` + the mig-155/156 `inwin` orbit pattern EXACTLY (you already have the audience
+   > and the orbit — network graph adds the OVERLAP COUNT + each side's audience size). It feeds the
+   > partnerships feature (`vision.org_partnerships` + `/api/metrics/cross-org` already exist). CHECK data.jsx
+   > for an existing narrative template/demo before authoring copy; if none, add a `{template,data}` entry
+   > (no baked numbers). Then Phase D (exports/partnerships/scheduled reports). Mind performance — bound
+   > windows, lean on existing indexes (rsvps_user_id_idx, events_created_by_date_idx, follows_unique,
+   > follows_follower_idx), prepare for scale.
    > GATES — every DB increment (only if genuinely needed): pre-apply git tag `connect-pre-mig<N>`,
    > `apply_migration`, security advisors **0 ERROR + fingerprint diff = exactly your one new gated
-   > authenticated-SECDEF fn** (do NOT chase the absolute number — see the baseline-reality note above), rolled-up
-   > prod smoke (temp org linked to the busiest contributor `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca` —
-   > `organisations` needs name/slug/created_by; use FIXED uuids so cleanup is deterministic; fully deleted
-   > after; simulate an org_admin via `set_config('request.jwt.claims','{"sub":"<uid>","role":"authenticated"}',
-   > false)` + a temp `vision.user_org_roles` row to test the membership gate — the exact 3-call pattern
-   > [setup+member call · non-member 42501 · cleanup+reset+net-zero assert] is in §3V / the session log
-   > `vision-demo-live-wiring-6.md`), migration file committed AND byte-matched (verify the deployed fn via
+   > authenticated-SECDEF fn + `anon_security_definer` count unchanged** (do NOT chase the absolute number — see
+   > the baseline-reality note above; your fn must `revoke ... from public, anon`), rolled-up prod smoke (temp
+   > org linked to the busiest contributor `4a1b3802-4e9d-40ef-bd8d-7ec8b4d242ca` — `organisations` needs
+   > name/slug/created_by; use FIXED uuids so cleanup is deterministic; fully deleted after; simulate an
+   > org_admin via `set_config('request.jwt.claims','{"sub":"<uid>","role":"authenticated"}', false)` + a temp
+   > `vision.user_org_roles` row to test the membership gate — the exact 3-call pattern [setup+member call ·
+   > non-member 42501 · cleanup+reset+net-zero assert] is in §3W / the session log
+   > `vision-demo-live-wiring-7.md`), migration file committed AND byte-matched (verify the deployed fn via
    > `pg_get_functiondef` + `has_function_privilege`; for any reader that reads `public.profiles`, assert
-   > `email`/`full_name`/`avatar_url` PII is ABSENT from the definition). Every app increment: tsc 0 · eslint 0
-   > (run `npx eslint .` in citizens-vision — NOT `next lint --dir`, which the vision repo rejects) · vitest
-   > green · `npm run build` (= build-frontend + next build) · in-browser check (launch config
-   > `vision-frontend-built`, :3005 — if another chat holds 3005, add a temp config on a free port serving the
-   > same `../citizens-vision/public` and revert it after; demo flow must stay intact; the live overlay pattern
-   > in live.jsx [`applyOverlay` mutates `window.CV_DATA`; the demo-entry button needs a dispatched
+   > `email`/`full_name`/`avatar_url` PII is ABSENT from the definition — resolve display names app-side via
+   > `/api/v1/profiles/{id}` like dormancy did). Every app increment: tsc 0 · eslint 0 (run `npx eslint .` in
+   > citizens-vision — NOT `next lint --dir`, which the vision repo rejects) · vitest green · `npm run build`
+   > (= build-frontend + next build) · in-browser check (launch config `vision-frontend-built`, :3005 — if
+   > another chat holds 3005, add a temp config on a free port serving the same `../citizens-vision/public` and
+   > revert it after; demo flow must stay intact; the live overlay pattern in live.jsx [`applyOverlay` mutates
+   > `window.CV_DATA`; the demo-entry button "Explore the demo (Hope Collective)" needs a dispatched
    > `MouseEvent('click',{bubbles:true})` — preview_click alone did NOT advance it] + the per-screen
    > `liveCtx()`/`useEffect` + optimistic-CRUD-with-revert in views.jsx are the templates; verify via DOM/eval:
    > (i) nav collapses to icon-only below 1000px — set `window.innerWidth=1280` + dispatch `resize` BEFORE
    > entering demo; (ii) React re-renders async — read the DOM in a SEPARATE eval AFTER a click; (iii) synthetic
-   > overlay: call `window.CV_LIVE.applyOverlay(org, m, advisories, spaces, xpoll)` directly with reader-shaped
-   > rows, then read the built `window.CV_DATA` slots). Offload to `.claude/sessions/` per CLAUDE.md; end with
-   > the instruction-8 close-out + update RESUME_HERE (new §3W + NEXT STEPS), brief row 4d, wiring-spec banner,
-   > and SHARED_DB_CONTRACT §9 if a migration lands; push BOTH repos. Constraints: narrative copy is
-   > `{template,data}` slots only (no baked numbers/entities); every percentage ships with its numerator and
-   > denominator; the smallest org must never render worse than the demo (use `neutral` variants + real counts,
-   > never fabricated data — degrade a missing live source to an honest em dash); runtime is gated on the
-   > founder's `vision` PostgREST exposure + Vercel env — code against it, don't block on it.
+   > overlay: call `window.CV_LIVE.applyOverlay(org, m, advisories, spaces, xpoll, dormancy)` directly with
+   > reader-shaped rows, then read the built `window.CV_DATA` slots — preview_screenshot may time out on this
+   > renderer, so verify via `preview_eval` DOM reads + `preview_console_logs`, not screenshots). Offload to
+   > `.claude/sessions/` per CLAUDE.md; end with the instruction-8 close-out + update RESUME_HERE (new §3X +
+   > NEXT STEPS), brief row 4d, wiring-spec banner, and SHARED_DB_CONTRACT §9 if a migration lands; push BOTH
+   > repos. Constraints: narrative copy is `{template,data}` slots only (no baked numbers/entities); every
+   > percentage ships with its numerator and denominator; the smallest org must never render worse than the
+   > demo (use `neutral` variants + real counts, never fabricated data — degrade a missing live source to an
+   > honest em dash); runtime is gated on the founder's `vision` PostgREST exposure + Vercel env — code against
+   > it, don't block on it.
 3. **Wear launch-hardening fast-follows (code, any session, parallel):** `/api/*` rate limiting —
    **extract `@citizens/utils`(rate-limit) in the same change** (post-merge it's a plain workspace
    package; Vision's copy stayed byte-compatible on purpose); Wear `/api/admin/*` + triage screen
@@ -1306,6 +1390,6 @@ npx tsc --noEmit; npx vitest run; npx next lint --dir src; node scripts/build-fr
 
 ### Canonical docs (start here)
 - [VISION.md](VISION.md) · [.github/MASTER_DIRECTION.md](.github/MASTER_DIRECTION.md) — north star + locked technical direction.
-- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **155**, `public`/`vision`/`wear`).
+- [docs/SHARED_DB_CONTRACT.md](docs/SHARED_DB_CONTRACT.md) — shared-project schema contract (head mig **156**, `public`/`vision`/`wear`).
 - [docs/strategy/ECOSYSTEM_DECISION_BRIEF.md](docs/strategy/ECOSYSTEM_DECISION_BRIEF.md) — **the ecosystem code progress plan** (single source of truth).
 - [docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md](docs/strategy/STEP3_WEAR_INTEGRATION_SCOPE.md) — Wear Phase 3 spec (**✅ complete — §3L**).

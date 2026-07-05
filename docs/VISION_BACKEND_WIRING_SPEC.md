@@ -9,7 +9,7 @@
 > [Citizens_Vision_Backend_Architecture.md](../App%20Planning%20Docs/Vision/Citizens_Vision_Backend_Architecture.md)
 > (calculation-level design), Citizens Vision Product Blueprint (UI pages).
 >
-> **✅ BUILD STATUS (2026-07-04, migrations 147–155 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T + §3U + §3V):**
+> **✅ BUILD STATUS (2026-07-05, migrations 147–156 APPLIED — RESUME_HERE §3Q + §3R + §3S + §3T + §3U + §3V + §3W):**
 > §8 Phase A items 1 + Team (§3.11) and Phase B items 5–8 + 10 are LIVE, plus
 > Phase C items 11–12, plus the space-level tranche (§3.5b + §3.5a mapping), plus
 > the editable-collection CRUD frontend (Objectives/Projects/Vision statements/
@@ -46,6 +46,18 @@
 >   42501→403) → `live.jsx` overlays a home **crossPollination observation** (neutral
 >   "no discoveries" honest variant when the audience found no new org), with the demo
 >   showcasing it too (obs-5). This is Ephesians 2:19 made measurable.
+> - **mig 156 (§4.5, Phase C item 14):** `dormancy_watch(org, threshold_days,
+>   lookback_days)` — the Dormancy / Churn early-warning, the de-scattering
+>   GUARDIAN (recency complement to mig 155). Across an org's engaged audience
+>   (`org_active_persons`, 180d lookback), which OTHER `role='contributor'` orgs
+>   in the ORBIT (audience rsvps+follows, the mig-155 `inwin` pattern) have gone
+>   quiet — `last_activity = GREATEST(latest published event, latest non-deleted
+>   broadcast)` older than a threshold (default 60d). num+den per §5; NO PII
+>   (reads `role` only; dormant orgs' PUBLIC names resolved app-side via
+>   `/api/v1/profiles/{id}`). App: `GET /api/metrics/dormancy` (best-effort,
+>   42501→403) → `live.jsx` synthesizes a home/Advisories **dormancy advisory**
+>   (neutral "all active" honest variant; `bodyNoNames` when names unresolved;
+>   suppressed when there's no orbit).
 > All SECURITY DEFINER, org-membership-gated, num+den per §5. Vision app:
 > `GET /api/metrics/connect` wraps the RGRE + funnel + broadcast readers;
 > `GET /api/advisory` + `PATCH /api/advisory/[id]` feed the Advisories screen +
@@ -57,9 +69,9 @@
 > revert, demo local-only fallback); the HTML frontend overlays live rows onto the
 > narrative-engine slots + editable-collection state (`live.jsx` + `views.jsx`).
 > Sections below marked ❌/⚠️ BUILD for these items are now historical.
-> **Still open:** Timeline Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`; SKIPPED in §3V
-> as the key was still empty), Phase C items 14–15 (dormancy/churn §4.5, network graph
-> §4.3 — item 13 cross-pollination §4.2 is now LIVE via mig 155), Phase D
+> **Still open:** Timeline Map (§3 — needs `NEXT_PUBLIC_MAPTILER_KEY`; SKIPPED in §3V–§3W
+> as the key was still empty), Phase C item 15 (network graph §4.3 — items 13 cross-pollination
+> §4.2 via mig 155 and 14 dormancy §4.5 via mig 156 are now LIVE), Phase D
 > (exports/partnerships/scheduled reports). The **member invite path stays stubbed**
 > until a Supabase Admin/invite flow lands (records intent, inserts no role).
 
@@ -903,13 +915,32 @@ Is the city's Kingdom activity balanced across categories?
 **Value:** Platform-level insight (platform_admin view): "Pretoria has 47 worship events but
 only 2 youth events — there's a gap the community should fill."
 
-### 4.5 Dormancy / Churn Early Warning
+### 4.5 Dormancy / Churn Early Warning — ✅ WIRED (mig 156 · RESUME §3W)
 ```
-Which previously active orgs/citizens have gone quiet?
+Which previously active orgs in your community's orbit have gone quiet?
 ```
 **Source:** Last activity date per org (from events.created_at, broadcast_messages.created_at).
-**Calculation:** Days since last activity; flag if > threshold (e.g., 60 days).
-**Value:** "3 contributors haven't posted events in 60+ days" — early intervention signal.
+**Calculation:** Days since last activity; flag if > threshold (default 60 days).
+**Value:** "3 organisations your community engages with haven't posted in 60+ days" —
+early intervention signal; the de-scattering GUARDIAN (spot a fellow contributor fading
+so the Body can respond — VISION litmus #3).
+**Subject (founder decision, 2026-07-04):** "orbit contributors" — the OTHER
+`role='contributor'` orgs THIS org's own engaged audience connects with (rsvps + follows),
+NOT the org's own citizens (no citizen PII) and NOT partnership-only. It uses exactly §4.5's
+stated source (events/broadcasts, which only orgs author) and is distinct from §4.3 network
+graph (who to PARTNER with) — this is a recency ALARM on who is fading.
+**Built as:** `vision.dormancy_watch(p_org_id, p_threshold_days DEFAULT 60, p_lookback_days
+DEFAULT 180)` — org-gated SECDEF reader (same class as migs 148/154/155). Audience =
+`org_active_persons` over the lookback; orbit = the mig-155 `inwin` pattern (audience →
+role='contributor' orgs ≠ this one); `last_activity = GREATEST(latest published event, latest
+non-deleted broadcast)`; orgs that never spoke are excluded ("previously active"). Returns a
+single row (`threshold_days`, `orbit_size` den, `dormant_count` num, `dormant_pct`,
+`max_days_quiet`, `dormant_ids uuid[]`, `period_start/end`) — num+den per §5. **NO PII** (reads
+`role` only; dormant orgs' PUBLIC names resolved app-side via `/api/v1/profiles/{id}`).
+Surfaced as a home/Advisories **dormancy advisory** via `GET /api/metrics/dormancy` (best-effort,
+42501→403; `days` = threshold). Neutral ("All contributors are active.") when the orbit has
+nobody quiet; the `bodyNoNames` variant covers a Connect directory that couldn't resolve names;
+suppressed entirely when there is no orbit or the fetch fails.
 
 ### 4.6 Volunteer Supply/Demand
 ```

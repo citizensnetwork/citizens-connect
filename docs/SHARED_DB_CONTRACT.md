@@ -183,7 +183,7 @@ FKs or direct cross-app table reads that would weld the schemas together (Rules 
 
 ---
 
-## 9. Verification snapshot (updated 2026-07-04, project `xyiajtrvhlxaeplsiajj`, head = mig 155)
+## 9. Verification snapshot (updated 2026-07-05, project `xyiajtrvhlxaeplsiajj`, head = mig 156)
 
 Confirmed live:
 - **Schemas:** `public`, `vision`, **`wear`** present.
@@ -270,6 +270,27 @@ Confirmed live:
   after this migration (it also surfaces the ~mig-137 vision helpers, `wear`, and Connect SECDEF fns
   the linter now enumerates). Future DB increments should gate on a before/after fingerprint **diff**
   (0 ERROR / +1 expected fn), not the absolute number.
+- **`vision.*` mig 156 (2026-07-05 — RESUME §3W):** Phase C item 14 — the Dormancy / Churn
+  early-warning `dormancy_watch(org, threshold_days, lookback_days)`, the "de-scattering GUARDIAN"
+  (§4.5) — the recency complement to mig 155. Across an org's engaged audience (reuses
+  `org_active_persons` over a 180-day lookback, clamped 30..366), it flags which OTHER
+  `role='contributor'` orgs in the ORBIT (audience rsvps+follows, the mig-155 `inwin` pattern) have
+  stopped posting events/broadcasts longer than a threshold (default 60d, clamped 1..365).
+  `last_activity(X) = GREATEST(latest published event.created_at, latest non-deleted
+  broadcast_messages.created_at)`; orgs that never spoke (NULL) are excluded (§4.5 "previously
+  active"). Returns ONE summary row — `threshold_days`, `orbit_size` (den), `dormant_count` (num),
+  `dormant_pct`, `max_days_quiet`, `dormant_ids uuid[]` (cap 20), `period_start/end` — num+den per §5.
+  **No PII** — reads rsvps/follows/events/broadcast_messages; the only `public.profiles` join reads
+  `role`, and the deployed definition was verified to contain **no `email`/`full_name`/`avatar_url`**
+  (dormant orgs' PUBLIC names are resolved app-side via `/api/v1/profiles/{id}`). SECDEF, stable,
+  EXECUTE `authenticated`+`service_role` (anon/public revoked), `search_path=vision,public,pg_catalog`,
+  `is_org_member`/`is_platform_admin` gate. **Security advisors: 0 ERROR;** the before/after fingerprint
+  diff added **exactly one** WARN (`authenticated_security_definer | dormancy_watch` — the vision
+  authenticated-SECDEF class is now FOURTEEN; do not re-flag), 0 collateral, `anon_security_definer`
+  count unchanged at 10. Rolled-up prod smoke (temp org → busiest contributor `4a1b3802…`, simulated
+  org_admin via `set_config` jwt + temp role): default-60d = orbit 2 / dormant 2 / **100.0% (2/2)** /
+  max 72d quiet; threshold 90d (>72) → 0 dormant, orbit still 2 (neutral path); non-member → 42501;
+  net-zero cleanup. LIVE advisor absolute after this migration = **92 WARN / 3 INFO**.
 - **`wear.*` (mig 143 + 144 + 145 + 146):** **23 base tables** (all RLS-enabled, **0 without RLS**),
   **48 RLS policies**, **9 functions** — `set_updated_at`; the two READ-path SECURITY DEFINER helpers
   `is_conversation_member` + `is_blocked_either`; the four **mig-144 write-path** helpers
